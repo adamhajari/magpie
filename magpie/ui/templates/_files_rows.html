@@ -1,0 +1,176 @@
+{% if subfolders %}
+<!-- Immediate subfolders (shown when recursive=false) -->
+<div class="mb-4">
+  <h3 class="text-xs text-gray-500 uppercase tracking-wide mb-2">Subfolders</h3>
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+    {% for sf in subfolders %}
+    <a href="/files?path={{ sf.child_path | urlencode }}&recursive=false"
+       class="flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 hover:bg-gray-800 hover:border-gray-700 transition-colors group">
+      <span class="text-base">📁</span>
+      <div class="min-w-0">
+        <div class="text-sm text-gray-200 truncate group-hover:text-white" title="{{ sf.child_path }}">{{ sf.name }}</div>
+        <div class="text-xs text-gray-600">{{ sf.file_count | format_number }} files · {{ sf.total_bytes | format_bytes }}</div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% macro label_badge(action, source, approved_at) %}
+  {% if action %}
+    {% if action == 'keep_hot' %}
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-900/60 text-blue-300 border border-blue-800">Hot</span>
+    {% elif action == 'keep_cold' %}
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-900/60 text-indigo-300 border border-indigo-800">Cold</span>
+    {% elif action == 'trash' %}
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/60 text-red-300 border border-red-800">Trash</span>
+    {% endif %}
+    {% if source == 'classifier' %}
+      <span class="ml-1 text-xs text-gray-500">AI</span>
+    {% endif %}
+    {% if approved_at %}
+      <span class="ml-1 text-xs text-green-600">✓</span>
+    {% endif %}
+  {% else %}
+    <span class="text-gray-600 text-xs">—</span>
+  {% endif %}
+{% endmacro %}
+
+{% if files %}
+<div class="overflow-x-auto rounded-xl border border-gray-800">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-900 text-gray-500 text-xs uppercase tracking-wide">
+      <tr>
+        <th class="pl-3 pr-1 py-3 text-left w-10" onclick="event.stopPropagation()">
+          <input
+            type="checkbox"
+            id="select-all-files"
+            title="Select all on this page"
+            class="rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500"
+          />
+        </th>
+        <th class="px-3 py-3 text-left w-16">Thumb</th>
+        <th class="px-3 py-3 text-left">Filename</th>
+        <th class="px-3 py-3 text-left">Type</th>
+        <th class="px-3 py-3 text-right">Size</th>
+        <th class="px-3 py-3 text-left">Modified</th>
+        <th class="px-3 py-3 text-left">Drive</th>
+        <th class="px-3 py-3 text-left">Status</th>
+        <th class="px-3 py-3 text-left">Label</th>
+        <th class="px-3 py-3 text-center">Dupes</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-800 bg-gray-950">
+      {% for f in files %}
+      <tr class="hover:bg-gray-900/60 transition-colors cursor-pointer" onclick="window.location='/files/{{ f.id }}{{ filter_qs }}'">
+        <td class="pl-3 pr-1 py-2 align-middle" onclick="event.stopPropagation()">
+          <input
+            type="checkbox"
+            name="file_ids"
+            value="{{ f.id }}"
+            class="rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500"
+          />
+        </td>
+        <td class="px-3 py-2">
+          <img
+            src="/thumbs/{{ f.id }}"
+            loading="lazy"
+            width="48"
+            height="48"
+            class="w-12 h-12 object-cover rounded bg-gray-800"
+            alt=""
+          />
+        </td>
+        <td class="px-3 py-2 max-w-xs">
+          <div class="truncate text-gray-200 font-medium" title="{{ f.path }}">{{ f.path | basename }}</div>
+          <div class="truncate text-gray-600 text-xs" title="{{ f.path }}">{{ f.path | dirname }}</div>
+        </td>
+        <td class="px-3 py-2 text-gray-400 font-mono text-xs">{{ f.mime_type or '—' }}</td>
+        <td class="px-3 py-2 text-right text-gray-300 whitespace-nowrap">{{ f.size_bytes | format_bytes }}</td>
+        <td class="px-3 py-2 text-gray-400 whitespace-nowrap text-xs">{{ (f.modified_at or '')[:10] }}</td>
+        <td class="px-3 py-2 text-gray-400 text-xs truncate max-w-[8rem]">{{ f.drive_label or '—' }}</td>
+        <td class="px-3 py-2">
+          {% if f.status == 'present' %}
+            <span class="text-green-500 text-xs">present</span>
+          {% elif f.status == 'missing' %}
+            <span class="text-yellow-500 text-xs">missing</span>
+          {% elif f.status == 'archived' %}
+            <span class="text-blue-400 text-xs">archived</span>
+          {% elif f.status == 'trashed' %}
+            <span class="text-red-400 text-xs">trashed</span>
+          {% else %}
+            <span class="text-gray-600 text-xs">{{ f.status or '—' }}</span>
+          {% endif %}
+        </td>
+        <td class="px-3 py-2">
+          {{ label_badge(f.label_action, f.label_source, f.label_approved_at) }}
+        </td>
+        <td class="px-3 py-2 text-center" onclick="event.stopPropagation()">
+          {% if f.dupe_group_count %}
+            <a href="/duplicates/{{ f.dupe_group_id }}" class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-yellow-900/60 border border-yellow-700 text-yellow-300 text-xs font-medium hover:bg-yellow-800 transition-colors" title="{{ f.dupe_group_count }} duplicate group{% if f.dupe_group_count > 1 %}s{% endif %}">{{ f.dupe_group_count }}</a>
+          {% else %}
+            <span class="text-gray-700 text-xs">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div class="flex flex-col gap-3 mt-4 text-sm text-gray-400">
+  <div class="flex items-center justify-between">
+    <span>Page {{ page }} of {{ total_pages }} ({{ total | format_number }} files)</span>
+    <div class="flex gap-2">
+      {% if page > 1 %}
+      <button
+        class="px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 hover:bg-gray-700 transition-colors"
+        hx-get="/files"
+        hx-target="#files-region"
+        hx-push-url="true"
+        hx-include="#filter-form"
+        hx-vals='{"page": {{ page - 1 }}}'
+        onclick="document.getElementById('page-input').value = {{ page - 1 }}"
+      >← Prev</button>
+      {% endif %}
+      {% if page < total_pages %}
+      <button
+        class="px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 hover:bg-gray-700 transition-colors"
+        hx-get="/files"
+        hx-target="#files-region"
+        hx-push-url="true"
+        hx-include="#filter-form"
+        hx-vals='{"page": {{ page + 1 }}}'
+        onclick="document.getElementById('page-input').value = {{ page + 1 }}"
+      >Next →</button>
+      {% endif %}
+    </div>
+  </div>
+  <div class="flex items-center gap-3 py-2">
+    <span class="text-xs text-gray-500 uppercase tracking-wide">Per page:</span>
+    <div class="flex gap-2">
+      {% for size in [100, 1000, 5000] %}
+      <button
+        class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors {% if page_size == size %}bg-indigo-900/60 border border-indigo-700 text-indigo-300{% else %}bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700{% endif %}"
+        hx-get="/files"
+        hx-target="#files-region"
+        hx-push-url="true"
+        hx-include="#filter-form"
+        hx-vals='{"per_page": {{ size }}, "page": 1}'
+        onclick="document.getElementById('page-input').value = 1"
+      >{{ size }}</button>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="bg-gray-900 border border-gray-800 rounded-xl p-12 text-center">
+  <div class="text-4xl mb-3">🗂️</div>
+  <p class="text-gray-400">No files match the current filters.</p>
+</div>
+{% endif %}

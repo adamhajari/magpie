@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+{% block title %}Folders — Digital Librarian{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex items-center justify-between">
+  <div>
+    <h1 class="text-2xl font-bold text-white">Folder Browser</h1>
+    <p class="text-gray-400 text-sm mt-1">Navigate your file collection by folder structure. Mark a folder as <span class="text-teal-300/90">preferred for duplicates</span> so cross-folder duplicate groups can keep the copy inside that tree.</p>
+  </div>
+  <button
+    onclick="location.href='/folders?refresh=true{% if active_path %}&path={{ active_path | urlencode }}{% endif %}'"
+    class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded-lg border border-gray-700 transition-colors"
+    title="Reload fresh data from database"
+  >
+    🔄 Reload Fresh
+  </button>
+</div>
+
+{% if preferred_set %}
+<div class="mb-4 rounded-lg border border-teal-800/60 bg-teal-950/30 px-4 py-2 text-sm text-teal-100">Folder added to preferred list for duplicate resolution.</div>
+{% endif %}
+{% if preferred_removed %}
+<div class="mb-4 rounded-lg border border-gray-700 bg-gray-900/60 px-4 py-2 text-sm text-gray-300">Folder removed from preferred list.</div>
+{% endif %}
+{% if rank_updated %}
+<div class="mb-4 rounded-lg border border-blue-800/60 bg-blue-950/30 px-4 py-2 text-sm text-blue-100">Folder priority rank updated.</div>
+{% endif %}
+{% if trashed %}
+<div class="mb-4 rounded-lg border border-red-800/60 bg-red-950/30 px-4 py-2 text-sm text-red-100">Folder contents moved to trash.</div>
+{% endif %}
+{% if labeled_hot %}
+<div class="mb-4 rounded-lg border border-amber-800/60 bg-amber-950/30 px-4 py-2 text-sm text-amber-100">Folder contents labeled for hot storage.</div>
+{% endif %}
+{% if labeled_cold %}
+<div class="mb-4 rounded-lg border border-blue-800/60 bg-blue-950/30 px-4 py-2 text-sm text-blue-100">Folder contents labeled for cold storage.</div>
+{% endif %}
+
+{% if breadcrumbs %}
+<!-- Breadcrumb -->
+<nav class="flex flex-wrap items-center gap-1 text-sm mb-6 bg-gray-900 border border-gray-800 rounded-xl px-4 py-2">
+  <a href="/folders" class="text-indigo-400 hover:text-indigo-200 transition-colors">All folders</a>
+  {% for crumb in breadcrumbs %}
+  <span class="text-gray-600">/</span>
+  {% if loop.last %}
+  <span class="text-gray-200 font-medium">{{ crumb.name }}</span>
+  {% else %}
+  <a href="/folders?path={{ crumb.path | urlencode }}" class="text-indigo-400 hover:text-indigo-200 transition-colors">{{ crumb.name }}</a>
+  {% endif %}
+  {% endfor %}
+</nav>
+{% endif %}
+
+{% if active_path %}
+<!-- Current folder actions -->
+<div class="flex flex-wrap gap-3 mb-6 items-center">
+  <a href="/files?path={{ active_path | urlencode }}&recursive=true"
+     class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors">
+    Browse files (recursive)
+  </a>
+  <a href="/files?path={{ active_path | urlencode }}&recursive=false"
+     class="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-sm transition-colors">
+    Browse files (this folder only)
+  </a>
+  <button type="button"
+     onclick='openHotModal({{ active_path | tojson }})'
+     class="px-4 py-2 rounded-lg bg-amber-900/30 hover:bg-amber-900/50 border border-amber-800 text-amber-200 text-sm transition-colors">
+    🔥 Label for hot storage
+  </button>
+  <button type="button"
+     onclick='openColdModal({{ active_path | tojson }})'
+     class="px-4 py-2 rounded-lg bg-blue-900/30 hover:bg-blue-900/50 border border-blue-800 text-blue-200 text-sm transition-colors">
+    ❄️ Label for cold storage
+  </button>
+  <button type="button"
+     onclick='openTrashModal({{ active_path | tojson }})'
+     class="px-4 py-2 rounded-lg bg-red-900/30 hover:bg-red-900/50 border border-red-800 text-red-200 text-sm transition-colors">
+    🗑 Move to trash
+  </button>
+  <a href="/duplicates?folder={{ active_path | urlencode }}"
+     class="px-4 py-2 rounded-lg bg-purple-900/30 hover:bg-purple-900/50 border border-purple-800 text-purple-200 text-sm transition-colors">
+    Show duplicates in this folder
+  </a>
+  {% if active_is_preferred %}
+  <form method="post" action="/folders/preferred/remove" class="inline">
+    <input type="hidden" name="path" value="{{ active_path }}" />
+    <button type="submit" class="px-4 py-2 rounded-lg bg-gray-800 hover:bg-red-950/40 border border-red-900/50 text-red-200 text-sm transition-colors">
+      Remove as preferred for duplicates
+    </button>
+  </form>
+  {% else %}
+  <form method="post" action="/folders/preferred/add" class="inline">
+    <input type="hidden" name="path" value="{{ active_path }}" />
+    <button type="submit" class="px-4 py-2 rounded-lg bg-teal-800 hover:bg-teal-700 border border-teal-600 text-white text-sm font-medium transition-colors">
+      Prefer this folder for duplicate keepers
+    </button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Folder nodes -->
+<div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
+  {% if nodes %}
+  <div class="space-y-0.5">
+    {% include "_folder_node.html" %}
+  </div>
+  {% else %}
+  <div class="text-center py-12">
+    <div class="text-4xl mb-3">📂</div>
+    <p class="text-gray-400">No folders found. Index some drives first.</p>
+    <p class="text-gray-600 text-sm mt-1">Run <code class="text-indigo-400">librarian index /path/to/drive</code></p>
+  </div>
+  {% endif %}
+</div>
+
+{% if preferred_paths_with_ranks %}
+<div class="mb-6 mt-6 rounded-xl border border-gray-800 bg-gray-900/80 px-4 py-3">
+  <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Preferred folders for duplicate resolution (by priority rank)</h2>
+  <div class="space-y-3 text-sm">
+    {% for item in preferred_paths_with_ranks %}
+    <div class="flex flex-wrap items-center justify-between gap-3 text-gray-300 border border-gray-800 rounded-lg p-3 bg-gray-800/30">
+      <div class="flex-1 min-w-0">
+        <div class="font-mono text-xs break-all text-gray-200">{{ item.path }}</div>
+        <div class="text-gray-500 text-xs mt-1">Rank: <span class="text-gray-300 font-semibold">{{ item.rank }}</span> / {{ preferred_paths_with_ranks|length }}</div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Set rank dropdown -->
+        <form method="post" action="/folders/preferred/set-rank" class="inline-flex items-center gap-1">
+          <input type="hidden" name="path" value="{{ item.path }}" />
+          <select name="new_rank" class="px-2 py-1 rounded border border-gray-600 bg-gray-800 text-gray-300 text-xs hover:border-gray-400" onchange="this.form.submit()">
+            <option value="" disabled selected>Set rank...</option>
+            {% for i in range(1, preferred_paths_with_ranks|length + 1) %}
+            <option value="{{ i }}" {% if i == item.rank %}selected{% endif %}>Rank {{ i }}</option>
+            {% endfor %}
+          </select>
+        </form>
+        <!-- Remove button -->
+        <form method="post" action="/folders/preferred/remove" class="inline">
+          <input type="hidden" name="path" value="{{ item.path }}" />
+          <button type="submit" class="px-2 py-1 rounded border border-gray-600 text-gray-400 hover:text-red-200 hover:border-red-800 text-xs transition-colors">Remove</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <p class="text-gray-500 text-xs mt-4"><strong class="text-gray-400">Higher rank = higher priority.</strong> When a duplicate group has copies across preferred folders, the copy in the highest-ranked folder wins. Then use <strong class="text-gray-400">Apply preferred folders</strong> on the Duplicates page (or <code class="text-indigo-400">librarian dupes apply-preferred</code>). Outside copies get pending trash.</p>
+</div>
+{% endif %}
+
+<!-- Move to trash modal -->
+<div id="trash-modal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50">
+  <div class="bg-gray-900 rounded-2xl border border-gray-800 p-6 max-w-md mx-4">
+    <h2 class="text-lg font-bold text-white mb-2">Move Folder to Trash</h2>
+    <p class="text-gray-400 text-sm mb-4">
+      You will be moving all files in this folder and its subfolders to the trash. This action can be undone by removing the trash labels.
+    </p>
+    <div id="trash-info" class="mb-6 p-3 rounded-lg bg-gray-800 border border-gray-700">
+      <p id="trash-summary" class="text-sm text-gray-300 mb-2">
+        <span id="trash-count" class="font-semibold text-white">—</span> files
+      </p>
+      <div id="trash-breakdown" class="text-xs text-gray-400 space-y-0.5"></div>
+    </div>
+    <div class="flex gap-2">
+      <button type="button"
+        class="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors"
+        onclick="closeTrashModal()"
+      >Cancel</button>
+      <button type="button"
+        id="trash-unlabeled-btn"
+        class="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-gray-700 border border-gray-600 text-gray-300 hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        onclick="confirmTrash('unlabeled_only')"
+      >Unlabeled only</button>
+      <button type="button"
+        class="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-red-900 border border-red-800 text-red-100 hover:bg-red-800 transition-colors"
+        onclick="confirmTrash('all')"
+      >All files</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden form for trash submission -->
+<form id="trash-form" method="post" action="/folders/trash" style="display: none;">
+  <input type="hidden" id="trash-path" name="path" value="" />
+  <input type="hidden" id="trash-mode" name="mode" value="all" />
+</form>
+
+<!-- Label for hot storage modal -->
+<div id="hot-modal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50">
+  <div class="bg-gray-900 rounded-2xl border border-gray-800 p-6 max-w-md mx-4">
+    <h2 class="text-lg font-bold text-white mb-2">Label for Hot Storage</h2>
+    <p class="text-gray-400 text-sm mb-4">
+      You will be labeling all files in this folder and its subfolders for hot storage. This marks them to be kept on fast/local drives.
+    </p>
+    <div id="hot-info" class="mb-6 p-3 rounded-lg bg-gray-800 border border-gray-700">
+      <p id="hot-summary" class="text-sm text-gray-300 mb-2">
+        <span id="hot-count" class="font-semibold text-white">—</span> files
+      </p>
+      <div id="hot-breakdown" class="text-xs text-gray-400 space-y-0.5"></div>
+    </div>
+    <div class="flex gap-2">
+      <button type="button"
+        class="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors"
+        onclick="closeHotModal()"
+      >Cancel</button>
+      <button type="button"
+        id="hot-unlabeled-btn"
+        class="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-gray-700 border border-gray-600 text-gray-300 hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        onclick="confirmHot('unlabeled_only')"
+      >Unlabeled only</button>
+      <button type="button"
+        class="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-amber-900 border border-amber-800 text-amber-100 hover:bg-amber-800 transition-colors"
+        onclick="confirmHot('all')"
+      >All files</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden form for hot storage submission -->
+<form id="hot-form" method="post" action="/folders/label-hot" style="display: none;">
+  <input type="hidden" id="hot-path" name="path" value="" />
+  <input type="hidden" id="hot-mode" name="mode" value="all" />
+</form>
+
+<!-- Label for cold storage modal -->
+<div id="cold-modal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50">
+  <div class="bg-gray-900 rounded-2xl border border-gray-800 p-6 max-w-md mx-4">
+    <h2 class="text-lg font-bold text-white mb-2">Label for Cold Storage</h2>
+    <p class="text-gray-400 text-sm mb-4">
+      You will be labeling all files in this folder and its subfolders for cold storage. This marks them to be archived or moved to slower drives.
+    </p>
+    <div id="cold-info" class="mb-6 p-3 rounded-lg bg-gray-800 border border-gray-700">
+      <p id="cold-summary" class="text-sm text-gray-300 mb-2">
+        <span id="cold-count" class="font-semibold text-white">—</span> files
+      </p>
+      <div id="cold-breakdown" class="text-xs text-gray-400 space-y-0.5"></div>
+    </div>
+    <div class="flex gap-2">
+      <button type="button"
+        class="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors"
+        onclick="closeColdModal()"
+      >Cancel</button>
+      <button type="button"
+        id="cold-unlabeled-btn"
+        class="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-gray-700 border border-gray-600 text-gray-300 hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        onclick="confirmCold('unlabeled_only')"
+      >Unlabeled only</button>
+      <button type="button"
+        class="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-blue-900 border border-blue-800 text-blue-100 hover:bg-blue-800 transition-colors"
+        onclick="confirmCold('all')"
+      >All files</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden form for cold storage submission -->
+<form id="cold-form" method="post" action="/folders/label-cold" style="display: none;">
+  <input type="hidden" id="cold-path" name="path" value="" />
+  <input type="hidden" id="cold-mode" name="mode" value="all" />
+</form>
+
+<script>
+let trashModalPath = "";
+let hotModalPath = "";
+let coldModalPath = "";
+
+function buildLabelBreakdown(labeled) {
+  const labelNames = {
+    "keep_hot": "hot",
+    "keep_cold": "cold",
+    "trash": "trash"
+  };
+
+  const items = [];
+  for (const [action, count] of Object.entries(labeled)) {
+    if (count > 0) {
+      const name = labelNames[action] || action;
+      items.push(`${count} labeled ${name}`);
+    }
+  }
+  return items;
+}
+
+function updateModalStats(prefix) {
+  const modal = document.getElementById(`${prefix}-modal`);
+  const countEl = document.getElementById(`${prefix}-count`);
+  const breakdownEl = document.getElementById(`${prefix}-breakdown`);
+  const unlabeledBtn = document.getElementById(`${prefix}-unlabeled-btn`);
+
+  // Build summary message
+  const path = eval(`${prefix}ModalPath`);
+  fetch(`/folders/label-stats?path=${encodeURIComponent(path)}`)
+    .then(response => response.json())
+    .then(data => {
+      const { total, unlabeled, labeled } = data;
+      countEl.textContent = total;
+
+      // Build breakdown items
+      const items = buildLabelBreakdown(labeled);
+
+      if (items.length > 0) {
+        // There are already-labeled files
+        breakdownEl.innerHTML = items.map(item => `<div>• ${item}</div>`).join('');
+      } else {
+        // All files are unlabeled
+        breakdownEl.innerHTML = '';
+      }
+
+      // Enable/disable the unlabeled-only button
+      if (unlabeled === 0) {
+        unlabeledBtn.disabled = true;
+        unlabeledBtn.textContent = "No unlabeled files";
+      } else {
+        unlabeledBtn.disabled = false;
+        unlabeledBtn.textContent = `Unlabeled only (${unlabeled})`;
+      }
+    })
+    .catch(error => {
+      console.error('Error fetching label stats:', error);
+      alert('Error fetching file information.');
+    });
+}
+
+function openTrashModal(path) {
+  trashModalPath = path;
+  document.getElementById('trash-count').textContent = "—";
+  document.getElementById('trash-breakdown').innerHTML = '';
+  updateModalStats('trash');
+  document.getElementById('trash-modal').classList.remove('hidden');
+}
+
+function closeTrashModal() {
+  document.getElementById('trash-modal').classList.add('hidden');
+  trashModalPath = "";
+}
+
+function confirmTrash(mode) {
+  if (trashModalPath) {
+    document.getElementById('trash-path').value = trashModalPath;
+    document.getElementById('trash-mode').value = mode;
+    document.getElementById('trash-form').submit();
+  }
+}
+
+function openHotModal(path) {
+  hotModalPath = path;
+  document.getElementById('hot-count').textContent = "—";
+  document.getElementById('hot-breakdown').innerHTML = '';
+  updateModalStats('hot');
+  document.getElementById('hot-modal').classList.remove('hidden');
+}
+
+function closeHotModal() {
+  document.getElementById('hot-modal').classList.add('hidden');
+  hotModalPath = "";
+}
+
+function confirmHot(mode) {
+  if (hotModalPath) {
+    document.getElementById('hot-path').value = hotModalPath;
+    document.getElementById('hot-mode').value = mode;
+    document.getElementById('hot-form').submit();
+  }
+}
+
+function openColdModal(path) {
+  coldModalPath = path;
+  document.getElementById('cold-count').textContent = "—";
+  document.getElementById('cold-breakdown').innerHTML = '';
+  updateModalStats('cold');
+  document.getElementById('cold-modal').classList.remove('hidden');
+}
+
+function closeColdModal() {
+  document.getElementById('cold-modal').classList.add('hidden');
+  coldModalPath = "";
+}
+
+function confirmCold(mode) {
+  if (coldModalPath) {
+    document.getElementById('cold-path').value = coldModalPath;
+    document.getElementById('cold-mode').value = mode;
+    document.getElementById('cold-form').submit();
+  }
+}
+</script>
+{% endblock %}

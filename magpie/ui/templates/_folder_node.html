@@ -1,0 +1,15 @@
+{% for node in nodes %}
+<div class="flex items-center gap-1 px-2 py-1.5 rounded hover:bg-gray-800 transition-colors group">
+  <span class="text-gray-500 text-xs flex-shrink-0">📁</span>
+  <a href="/files?path={{ node.child_path | urlencode }}&recursive=false"
+     class="text-sm text-gray-300 truncate flex-1 group-hover:text-white min-w-0"
+     title="{{ node.child_path }}">{{ node.name }}</a>
+  <span class="text-xs text-gray-600 whitespace-nowrap flex-shrink-0">{{ node.file_count | format_number }}</span>
+  <span class="text-xs text-gray-600 whitespace-nowrap flex-shrink-0 ml-1 hidden sm:inline">{{ node.total_bytes | format_bytes }}</span>
+  <a href="/folders?path={{ node.child_path | urlencode }}"
+     class="flex-shrink-0 text-xs text-gray-600 hover:text-indigo-300 ml-1"
+     title="Browse subfolders of {{ node.name }}">▸</a>
+</div>
+{% else %}
+<p class="text-xs text-gray-600 px-2 py-1.5">No subfolders</p>
+{% endfor %}

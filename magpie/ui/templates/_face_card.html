@@ -1,0 +1,62 @@
+<div
+  id="face-card-{{ file.id }}-{{ face.face_index }}"
+  class="face-card flex flex-col gap-2 w-36 shrink-0 rounded-lg p-2 border bg-gray-900/80
+    {% if face.source == 'auto' %}
+    border-amber-500/70 border-dashed ring-1 ring-amber-900/40
+    {% else %}
+    border-gray-700
+    {% endif %}"
+>
+  <div class="relative aspect-square rounded-md overflow-hidden bg-gray-950 border border-gray-800">
+    {% if face.thumb_exists %}
+    <img
+      src="/faces/{{ file.id }}/{{ face.face_index }}"
+      alt="Face {{ face.face_index }}"
+      class="w-full h-full object-cover"
+      loading="lazy"
+    />
+    {% else %}
+    <div class="w-full h-full flex items-center justify-center text-gray-600 text-xs">No crop</div>
+    {% endif %}
+    {% if face.source == 'auto' and face.confidence is not none %}
+    <span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-950/90 text-amber-200 border border-amber-800/80">
+      {{ "%.0f"|format(face.confidence * 100) }}%
+    </span>
+    {% endif %}
+  </div>
+
+  <form
+    class="flex flex-col gap-1.5"
+    hx-post="/files/{{ file.id }}/faces/{{ face.face_index }}/label"
+    hx-target="#face-card-{{ file.id }}-{{ face.face_index }}"
+    hx-swap="outerHTML"
+  >
+    <input
+      type="text"
+      name="name"
+      value="{{ face.person_name or '' }}"
+      placeholder="Name…"
+      autocomplete="off"
+      class="w-full text-xs px-2 py-1 rounded border border-gray-700 bg-gray-950 text-gray-100 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+    />
+    <button
+      type="submit"
+      class="text-xs py-1 rounded bg-gray-800 border border-gray-600 text-gray-200 hover:bg-gray-700"
+    >Save</button>
+  </form>
+
+  {% if face.source == 'auto' and face.person_name %}
+  <form
+    hx-post="/files/{{ file.id }}/faces/{{ face.face_index }}/confirm-auto"
+    hx-target="#face-card-{{ file.id }}-{{ face.face_index }}"
+    hx-swap="outerHTML"
+  >
+    <button
+      type="submit"
+      class="w-full text-left text-[11px] text-amber-300/90 hover:text-amber-200 underline decoration-dotted underline-offset-2"
+    >{{ face.person_name }} — tap to verify</button>
+  </form>
+  {% elif face.source == 'auto' %}
+  <p class="text-[10px] text-amber-600/90">Auto match · verify name above</p>
+  {% endif %}
+</div>

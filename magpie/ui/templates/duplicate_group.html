@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Duplicate group — Digital Librarian{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex items-center justify-between">
+  <a href="/duplicates" class="text-sm text-gray-400 hover:text-white transition-colors">← All duplicates</a>
+  {% if next_group_id %}
+  <a href="/duplicates/{{ next_group_id }}" class="text-sm text-indigo-400 hover:text-indigo-300 transition-colors font-medium">
+    Next unresolved →
+  </a>
+  {% endif %}
+</div>
+
+{% if updated %}
+<div class="mb-6 rounded-lg border border-green-800/60 bg-green-950/40 px-4 py-3 text-sm text-green-200">
+  Keeper updated and trash labels created for the other copies in this group (pending approval).
+</div>
+{% endif %}
+
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+  <div>
+    <h1 class="text-xl font-bold text-white">Duplicate group</h1>
+    <p class="text-gray-500 text-xs font-mono mt-1 break-all">{{ group.group_id }}</p>
+    <div class="mt-2 flex items-center gap-2">
+      {% if group.match_type == 'exact' %}
+      <span class="px-2 py-0.5 rounded text-xs bg-orange-900/50 text-orange-300 border border-orange-800">exact</span>
+      {% elif group.is_identical %}
+      <span class="px-2 py-0.5 rounded text-xs bg-orange-900/50 text-orange-300 border border-orange-800">identical</span>
+      <span class="text-xs text-gray-500">near-duplicate · 100% match</span>
+      {% else %}
+      <span class="px-2 py-0.5 rounded text-xs bg-yellow-900/50 text-yellow-300 border border-yellow-800">near</span>
+      {% if group.min_confidence is not none %}
+      <span class="text-xs text-gray-500">{{ (group.min_confidence * 100) | round | int }}% match</span>
+      {% endif %}
+      {% endif %}
+      <span class="text-sm text-gray-400">{{ members | length }} files · total {{ group.total_bytes | format_bytes }} · reclaimable {{ group.reclaimable_bytes | format_bytes }}</span>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+  {% for m in members %}
+  <div class="bg-gray-900 border rounded-xl overflow-hidden flex flex-col {% if m.recommended_keep %}border-green-800/60{% else %}border-gray-800{% endif %}">
+    <a href="/files/{{ m.id }}" class="aspect-[4/3] bg-gray-800 flex items-center justify-center overflow-hidden hover:opacity-80 transition-opacity">
+      <img src="/thumbs/{{ m.id }}" alt="" class="w-full h-full object-contain" loading="lazy" />
+    </a>
+    <div class="p-4 flex flex-col flex-1 gap-3">
+      <div>
+        <a href="/files/{{ m.id }}" class="text-sm font-medium text-indigo-400 hover:text-indigo-300 transition-colors break-all block">{{ m.path | basename }}</a>
+        <a href="/folders?path={{ (m.path | dirname) | urlencode }}" class="text-xs text-gray-500 hover:text-gray-400 transition-colors break-all mt-0.5 inline-block">{{ m.path | dirname }}</a>
+      </div>
+      <dl class="text-xs space-y-1 text-gray-400">
+        <div class="flex justify-between gap-2"><dt>Size</dt><dd class="text-gray-200">{{ m.size_bytes | format_bytes }}</dd></div>
+        <div class="flex justify-between gap-2"><dt>Modified</dt><dd class="text-gray-200">{{ (m.modified_at or '')[:19] or '—' }}</dd></div>
+        <div class="flex justify-between gap-2"><dt>Drive</dt><dd class="text-gray-200 text-right">{{ m.drive_label or '—' }}</dd></div>
+      </dl>
+      {% if m.exif_summary %}
+      <p class="text-xs text-gray-500 leading-snug border-t border-gray-800 pt-2">{{ m.exif_summary }}</p>
+      {% elif (m.mime_type or '').startswith('image/') %}
+      <p class="text-xs text-gray-600 border-t border-gray-800 pt-2">No EXIF summary</p>
+      {% endif %}
+      {% if m.recommended_keep %}
+      <span class="text-xs text-green-400/90">Detector pick</span>
+      {% endif %}
+      {% if m.action %}
+      <div class="flex items-center gap-2 pt-2 border-t border-gray-800">
+        <span class="text-xs text-gray-500">Label:</span>
+        <span class="text-xs font-medium px-2 py-0.5 rounded
+          {% if m.action == 'keep_hot' %}bg-blue-900/40 text-blue-300 border border-blue-800
+          {% elif m.action == 'keep_cold' %}bg-indigo-900/40 text-indigo-300 border border-indigo-800
+          {% else %}bg-red-900/40 text-red-300 border border-red-800{% endif %}">
+          {% if m.action == 'keep_hot' %}☀️ Hot{% elif m.action == 'keep_cold' %}❄️ Cold{% else %}🗑️ Trash{% endif %}
+        </span>
+        {% if not m.approved_at %}
+        <span class="text-xs text-yellow-500/80">(pending)</span>
+        {% endif %}
+      </div>
+      {% endif %}
+      <form method="post" action="/duplicates/{{ group.group_id }}/keep/{{ m.id }}" class="mt-auto pt-2">
+        <button
+          type="submit"
+          class="w-full py-2 rounded-lg bg-indigo-700 hover:bg-indigo-600 text-white text-sm font-medium border border-indigo-600 transition-colors"
+        >
+          Keep this one
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

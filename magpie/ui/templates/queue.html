@@ -1,0 +1,458 @@
+{% extends "base.html" %}
+{% block title %}Action Queue — Digital Librarian{% endblock %}
+
+{% block content %}
+<div class="mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-bold text-white">Action Queue</h1>
+    <p class="text-gray-400 text-sm mt-1">Approved labels ready for the executor · remove approval to send back to pending</p>
+  </div>
+  <div>
+    <button type="button"
+      class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+      onclick="checkMissingFiles()"
+    >Purge Missing Files</button>
+  </div>
+</div>
+
+{% if approved_bulk %}
+<div class="mb-6 p-4 rounded-xl bg-green-950/50 border border-green-900 text-green-200 text-sm">
+  Bulk-approved <span class="font-semibold text-white">{{ approved_bulk }}</span> pending label(s).
+</div>
+{% endif %}
+
+{% if purged %}
+<div class="mb-6 p-4 rounded-xl bg-green-950/50 border border-green-900 text-green-200 text-sm">
+  ✓ Successfully purged missing files from the database.
+</div>
+{% endif %}
+
+{% if removed_bulk %}
+<div class="mb-6 p-4 rounded-xl bg-amber-950/50 border border-amber-900 text-amber-200 text-sm">
+  Removed label from <span class="font-semibold text-white">{{ removed_bulk }}</span> file(s).
+</div>
+{% endif %}
+
+<!-- Pending approval section -->
+{% if pending_groups %}
+<h2 class="text-xl font-bold text-white mb-6 mt-8">Pending Approval</h2>
+
+{% for pg in pending_groups %}
+<section class="mb-12 rounded-2xl border {{ pg.border }} bg-gray-900/80 overflow-hidden">
+  <div class="px-5 py-4 border-b border-gray-800 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <div>
+      <h2 class="text-lg font-bold {{ pg.accent }}">{{ pg.title }}</h2>
+      <p class="text-sm text-gray-400 mt-1">
+        <span class="text-white font-medium">{{ pg.count | format_number }}</span> files
+        · <span class="text-white font-medium">{{ pg.total_bytes | format_bytes }}</span>
+      </p>
+      {% if pg.sample_ids %}
+      <div class="flex gap-1.5 mt-3">
+        {% for sid in pg.sample_ids %}
+        <a href="/files/{{ sid }}" class="block w-12 h-12 rounded-lg overflow-hidden border border-gray-700 bg-gray-950 shrink-0 hover:border-gray-500 transition-colors">
+          <img src="/thumbs/{{ sid }}" alt="" class="w-full h-full object-cover" loading="lazy" />
+        </a>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    <div class="flex flex-col items-stretch gap-2 min-w-[200px]">
+      <button type="button"
+        class="px-4 py-2.5 rounded-lg font-semibold text-sm bg-blue-800 hover:bg-blue-700 text-white border border-blue-600 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+        hx-post="/labels/approve-all?action={{ pg.executor_arg }}"
+        hx-swap="none"
+        {% if pg.count == 0 %}disabled{% endif %}
+      >Approve all</button>
+      <button type="button"
+        class="px-4 py-2.5 rounded-lg font-semibold text-sm bg-gray-800 hover:bg-red-950 text-gray-300 hover:text-red-300 border border-gray-700 hover:border-red-800 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+        hx-post="/labels/remove-all?action={{ pg.executor_arg }}"
+        hx-swap="none"
+        hx-confirm="Remove the {{ pg.title }} label from all {{ pg.count }} pending files? This cannot be undone."
+        {% if pg.count == 0 %}disabled{% endif %}
+      >Remove Label from All</button>
+      <p class="text-[11px] text-gray-500">Bulk approve all pending in this action.</p>
+    </div>
+  </div>
+
+  {% if pg.count == 0 %}
+  <p class="px-5 py-8 text-gray-500 text-sm">No pending files awaiting approval.</p>
+  {% else %}
+  <!-- Pagination controls (top) -->
+  {% if pg.total_pages > 1 %}
+  <div class="px-5 py-3 bg-gray-800/30 border-b border-gray-800">
+    <div class="flex items-center justify-between">
+      <span class="text-xs text-gray-400">
+        Page <span class="font-semibold">{{ pg.page }}</span> of <span class="font-semibold">{{ pg.total_pages }}</span>
+      </span>
+      <div class="flex gap-2">
+        {% if pg.prev_url %}
+        <a href="{{ pg.prev_url }}" class="px-3 py-1.5 rounded text-xs bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors">← Previous</a>
+        {% else %}
+        <button class="px-3 py-1.5 rounded text-xs bg-gray-800 text-gray-500 cursor-not-allowed opacity-50" disabled>← Previous</button>
+        {% endif %}
+        {% if pg.next_url %}
+        <a href="{{ pg.next_url }}" class="px-3 py-1.5 rounded text-xs bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors">Next →</a>
+        {% else %}
+        <button class="px-3 py-1.5 rounded text-xs bg-gray-800 text-gray-500 cursor-not-allowed opacity-50" disabled>Next →</button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-gray-500 text-xs uppercase tracking-wide text-left border-b border-gray-800">
+          <th class="px-4 py-3 w-16"></th>
+          <th class="px-4 py-3">File</th>
+          <th class="px-4 py-3 text-right">Size</th>
+          <th class="px-4 py-3">Date</th>
+          <th class="px-4 py-3">Source</th>
+          <th class="px-4 py-3 text-right w-36"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-800">
+        {% for f in pg.files %}
+        <tr class="hover:bg-gray-800/40">
+          <td class="px-4 py-2 align-middle">
+            <a href="/files/{{ f.id }}" class="block w-11 h-11 rounded overflow-hidden border border-gray-700 bg-gray-950">
+              <img src="/thumbs/{{ f.id }}" alt="" class="w-full h-full object-cover" loading="lazy" />
+            </a>
+          </td>
+          <td class="px-4 py-2 align-middle">
+            <a href="/files/{{ f.id }}" class="text-gray-200 hover:text-white font-medium break-all">{{ f.path | basename }}</a>
+            <div class="text-[11px] text-gray-600 truncate max-w-md">{{ f.path | dirname }}</div>
+          </td>
+          <td class="px-4 py-2 align-middle text-right text-gray-400 whitespace-nowrap">{{ f.size_bytes | format_bytes }}</td>
+          <td class="px-4 py-2 align-middle text-gray-400 whitespace-nowrap font-mono text-xs">
+            {% if f.modified_at %}{{ f.modified_at[:19] }}{% elif f.created_at %}{{ f.created_at[:19] }}{% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-2 align-middle">
+            {% if f.source == 'classifier' %}
+            <span class="text-violet-300">Classifier</span>
+            {% if f.confidence is not none %}
+            <span class="text-gray-500 text-xs ml-1">({{ (f.confidence * 100)|round|int }}%)</span>
+            {% endif %}
+            {% else %}
+            <span class="text-gray-300">User</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-2 align-middle text-right">
+            <button type="button"
+              class="text-xs px-2.5 py-1.5 rounded-md border border-gray-600 text-gray-400 hover:text-green-200 hover:border-green-700 transition-colors"
+              hx-post="/labels/{{ f.id }}/approve"
+              hx-swap="none"
+            >Approve</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination controls (bottom) -->
+  {% if pg.total_pages > 1 %}
+  <div class="px-5 py-3 bg-gray-800/30 border-t border-gray-800">
+    <div class="flex items-center justify-between">
+      <span class="text-xs text-gray-400">
+        Showing {{ pg.page_size * (pg.page - 1) + 1 }}-{{ [pg.page_size * pg.page, pg.count] | min }} of {{ pg.count | format_number }} files
+      </span>
+      <div class="flex gap-2">
+        {% if pg.prev_url %}
+        <a href="{{ pg.prev_url }}" class="px-3 py-1.5 rounded text-xs bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors">← Previous</a>
+        {% else %}
+        <button class="px-3 py-1.5 rounded text-xs bg-gray-800 text-gray-500 cursor-not-allowed opacity-50" disabled>← Previous</button>
+        {% endif %}
+        {% if pg.next_url %}
+        <a href="{{ pg.next_url }}" class="px-3 py-1.5 rounded text-xs bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors">Next →</a>
+        {% else %}
+        <button class="px-3 py-1.5 rounded text-xs bg-gray-800 text-gray-500 cursor-not-allowed opacity-50" disabled>Next →</button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+</section>
+{% endfor %}
+{% endif %}
+
+<!-- Approved section heading -->
+<h2 class="text-xl font-bold text-white mb-6 mt-8">Ready to Execute</h2>
+
+{% for g in groups %}
+<section class="mb-12 rounded-2xl border {{ g.border }} bg-gray-900/80 overflow-hidden">
+  <div class="px-5 py-4 border-b border-gray-800 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <div>
+      <h2 class="text-lg font-bold {{ g.accent }}">{{ g.title }}</h2>
+      <p class="text-sm text-gray-400 mt-1">
+        <span class="text-white font-medium">{{ g.count | format_number }}</span> files
+        · <span class="text-white font-medium">{{ g.total_bytes | format_bytes }}</span>
+      </p>
+      {% if g.sample_ids %}
+      <div class="flex gap-1.5 mt-3">
+        {% for sid in g.sample_ids %}
+        <a href="/files/{{ sid }}" class="block w-12 h-12 rounded-lg overflow-hidden border border-gray-700 bg-gray-950 shrink-0 hover:border-gray-500 transition-colors">
+          <img src="/thumbs/{{ sid }}" alt="" class="w-full h-full object-cover" loading="lazy" />
+        </a>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    <div class="flex flex-col items-stretch gap-2 min-w-[200px]">
+      <button type="button"
+        class="px-4 py-2.5 rounded-lg font-semibold text-sm bg-emerald-800 hover:bg-emerald-700 text-white border border-emerald-600 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+        data-exec-action="{{ g.executor_arg }}"
+        data-exec-target="exec-log-{{ g.executor_arg }}"
+        {% if g.count == 0 %}disabled{% endif %}
+      >Run executor</button>
+      <p class="text-[11px] text-gray-500">Streams <code class="text-gray-400">librarian execute</code> output below.</p>
+    </div>
+  </div>
+
+  {% if g.count == 0 %}
+  <p class="px-5 py-8 text-gray-500 text-sm">No approved files in this queue.</p>
+  {% else %}
+  <!-- Pagination controls (top) -->
+  {% if g.total_pages > 1 %}
+  <div class="px-5 py-3 bg-gray-800/30 border-b border-gray-800">
+    <div class="flex items-center justify-between">
+      <span class="text-xs text-gray-400">
+        Page <span class="font-semibold">{{ g.page }}</span> of <span class="font-semibold">{{ g.total_pages }}</span>
+      </span>
+      <div class="flex gap-2">
+        {% if g.prev_url %}
+        <a href="{{ g.prev_url }}" class="px-3 py-1.5 rounded text-xs bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors">← Previous</a>
+        {% else %}
+        <button class="px-3 py-1.5 rounded text-xs bg-gray-800 text-gray-500 cursor-not-allowed opacity-50" disabled>← Previous</button>
+        {% endif %}
+        {% if g.next_url %}
+        <a href="{{ g.next_url }}" class="px-3 py-1.5 rounded text-xs bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors">Next →</a>
+        {% else %}
+        <button class="px-3 py-1.5 rounded text-xs bg-gray-800 text-gray-500 cursor-not-allowed opacity-50" disabled>Next →</button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="px-5 py-3 bg-black/20 border-b border-gray-800">
+    <pre id="exec-log-{{ g.executor_arg }}" class="text-xs text-gray-300 font-mono whitespace-pre-wrap min-h-[2.5rem] max-h-48 overflow-y-auto text-left"></pre>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-gray-500 text-xs uppercase tracking-wide text-left border-b border-gray-800">
+          <th class="px-4 py-3 w-16"></th>
+          <th class="px-4 py-3">File</th>
+          <th class="px-4 py-3 text-right">Size</th>
+          <th class="px-4 py-3">Date</th>
+          <th class="px-4 py-3">Source</th>
+          <th class="px-4 py-3 text-right w-36"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-800">
+        {% for f in g.files %}
+        <tr class="hover:bg-gray-800/40">
+          <td class="px-4 py-2 align-middle">
+            <a href="/files/{{ f.id }}" class="block w-11 h-11 rounded overflow-hidden border border-gray-700 bg-gray-950">
+              <img src="/thumbs/{{ f.id }}" alt="" class="w-full h-full object-cover" loading="lazy" />
+            </a>
+          </td>
+          <td class="px-4 py-2 align-middle">
+            <a href="/files/{{ f.id }}" class="text-gray-200 hover:text-white font-medium break-all">{{ f.path | basename }}</a>
+            <div class="text-[11px] text-gray-600 truncate max-w-md">{{ f.path | dirname }}</div>
+          </td>
+          <td class="px-4 py-2 align-middle text-right text-gray-400 whitespace-nowrap">{{ f.size_bytes | format_bytes }}</td>
+          <td class="px-4 py-2 align-middle text-gray-400 whitespace-nowrap font-mono text-xs">
+            {% if f.modified_at %}{{ f.modified_at[:19] }}{% elif f.created_at %}{{ f.created_at[:19] }}{% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-2 align-middle">
+            {% if f.source == 'classifier' %}
+            <span class="text-violet-300">Classifier</span>
+            {% if f.confidence is not none %}
+            <span class="text-gray-500 text-xs ml-1">({{ (f.confidence * 100)|round|int }}%)</span>
+            {% endif %}
+            {% else %}
+            <span class="text-gray-300">User</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-2 align-middle text-right">
+            <button type="button"
+              class="text-xs px-2.5 py-1.5 rounded-md border border-gray-600 text-gray-400 hover:text-amber-200 hover:border-amber-700 transition-colors"
+              hx-post="/labels/{{ f.id }}/unapprove"
+              hx-swap="none"
+              hx-confirm="Remove from queue? The label stays as pending until you approve again."
+            >Remove from queue</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination controls (bottom) -->
+  {% if g.total_pages > 1 %}
+  <div class="px-5 py-3 bg-gray-800/30 border-t border-gray-800">
+    <div class="flex items-center justify-between">
+      <span class="text-xs text-gray-400">
+        Showing {{ g.page_size * (g.page - 1) + 1 }}-{{ [g.page_size * g.page, g.count] | min }} of {{ g.count | format_number }} files
+      </span>
+      <div class="flex gap-2">
+        {% if g.prev_url %}
+        <a href="{{ g.prev_url }}" class="px-3 py-1.5 rounded text-xs bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors">← Previous</a>
+        {% else %}
+        <button class="px-3 py-1.5 rounded text-xs bg-gray-800 text-gray-500 cursor-not-allowed opacity-50" disabled>← Previous</button>
+        {% endif %}
+        {% if g.next_url %}
+        <a href="{{ g.next_url }}" class="px-3 py-1.5 rounded text-xs bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors">Next →</a>
+        {% else %}
+        <button class="px-3 py-1.5 rounded text-xs bg-gray-800 text-gray-500 cursor-not-allowed opacity-50" disabled>Next →</button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+</section>
+{% endfor %}
+
+<!-- Purge missing files modal -->
+<div id="purge-modal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50">
+  <div class="bg-gray-900 rounded-2xl border border-gray-800 p-6 max-w-sm mx-4">
+    <h2 class="text-lg font-bold text-white mb-2">Purge Missing Files</h2>
+    <p class="text-gray-400 text-sm mb-4">
+      This will permanently delete all files marked as "missing" from the database. Their metadata and analysis records will also be removed. This action cannot be undone.
+    </p>
+    <div id="purge-info" class="mb-6 p-3 rounded-lg bg-gray-800 border border-gray-700">
+      <p class="text-sm text-gray-300">
+        <span id="purge-count" class="font-semibold text-white">—</span> files<br/>
+        <span id="purge-size" class="font-semibold text-white">—</span> total size
+      </p>
+    </div>
+    <div class="flex gap-3">
+      <button type="button"
+        class="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors"
+        onclick="closePurgeModal()"
+      >Cancel</button>
+      <button type="button"
+        id="purge-confirm-btn"
+        class="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-red-900 border border-red-800 text-red-100 hover:bg-red-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        onclick="confirmPurge()"
+      >Purge</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function formatBytes(bytes) {
+  var units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  var size = bytes;
+  var unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex++;
+  }
+  return size.toFixed(1) + ' ' + units[unitIndex];
+}
+
+function formatNumber(n) {
+  return n.toLocaleString();
+}
+
+function checkMissingFiles() {
+  fetch('/purge-missing/check')
+    .then(function(response) {
+      return response.json();
+    })
+    .then(function(data) {
+      document.getElementById('purge-count').textContent = formatNumber(data.count);
+      document.getElementById('purge-size').textContent = formatBytes(data.total_bytes);
+      document.getElementById('purge-modal').classList.remove('hidden');
+    })
+    .catch(function(error) {
+      console.error('Error checking missing files:', error);
+      alert('Error checking missing files.');
+    });
+}
+
+function closePurgeModal() {
+  document.getElementById('purge-modal').classList.add('hidden');
+}
+
+function confirmPurge() {
+  if (confirm('Are you sure you want to purge all missing files? This cannot be undone.')) {
+    var purgeBtn = document.getElementById('purge-confirm-btn');
+    var originalText = purgeBtn.textContent;
+    purgeBtn.disabled = true;
+    purgeBtn.textContent = 'Purging...';
+
+    fetch('/purge-missing/execute', {
+      method: 'POST',
+      headers: {
+        'HX-Request': 'true'
+      }
+    })
+    .then(function(response) {
+      if (!response.ok) {
+        throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+      }
+      return response.json();
+    })
+    .then(function(data) {
+      if (data.success) {
+        closePurgeModal();
+        window.location.href = '/queue?purged=1';
+      } else {
+        throw new Error('Purge failed on the server');
+      }
+    })
+    .catch(function(error) {
+      console.error('Error purging files:', error);
+      purgeBtn.disabled = false;
+      purgeBtn.textContent = originalText;
+      alert('Error purging missing files: ' + error.message);
+    });
+  }
+}
+
+(function () {
+  function appendLine(pre, line) {
+    if (!pre) return;
+    if (pre.textContent === '') pre.textContent = line;
+    else pre.textContent += '\n' + line;
+    pre.scrollTop = pre.scrollHeight;
+  }
+
+  document.querySelectorAll('[data-exec-action]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var action = btn.getAttribute('data-exec-action');
+      var tid = btn.getAttribute('data-exec-target');
+      var pre = document.getElementById(tid);
+      if (!pre || !action) return;
+      pre.textContent = '';
+      var url = '/queue/execute-stream?action=' + encodeURIComponent(action);
+      var es = new EventSource(url);
+      es.onmessage = function (ev) {
+        try {
+          var data = JSON.parse(ev.data);
+          if (data && typeof data === 'object' && 'exit_code' in data) {
+            appendLine(pre, '[exit code ' + data.exit_code + ']');
+            es.close();
+            return;
+          }
+          appendLine(pre, typeof data === 'string' ? data : JSON.stringify(data));
+        } catch (e) {
+          appendLine(pre, ev.data);
+        }
+      };
+      es.onerror = function () {
+        appendLine(pre, '[event stream closed]');
+        es.close();
+      };
+    });
+  });
+})();
+</script>
+{% endblock %}

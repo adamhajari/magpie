@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+dist/
+build/
+*.egg-info/
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Claude Code session state
+.claude/
+
+# macOS
+.DS_Store
+
+# Secrets / local config (stored at ~/.librarian/, never in repo)
+# config.toml, gdrive_token.json, dropbox_token.json are all in ~/.librarian/
+credentials.json
+token.json
+*.token.json
+
+# Editor
+.idea/
+.vscode/

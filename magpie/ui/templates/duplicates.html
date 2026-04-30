@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+{% block title %}Duplicates — Digital Librarian{% endblock %}
+
+{% block content %}
+{% if preferred_applied and preferred_applied > 0 %}
+<div class="mb-6 rounded-lg border border-green-800/60 bg-green-950/40 px-4 py-3 text-sm text-green-200">
+  Applied preferred-folder rules to <strong>{{ preferred_applied }}</strong> duplicate group{% if preferred_applied != 1 %}s{% endif %}. Review pending trash in the action queue before executing.
+</div>
+{% elif preferred_none and preferred_folder_count > 0 %}
+<div class="mb-6 rounded-lg border border-gray-700 bg-gray-900/60 px-4 py-3 text-sm text-gray-300">
+  No unresolved groups matched preferred folders (need at least one copy inside and one outside a marked folder).
+</div>
+{% endif %}
+
+{% if bulk_resolved %}
+<div class="mb-6 rounded-lg border border-green-800/60 bg-green-950/40 px-4 py-3 text-sm text-green-200">
+  Auto-resolved <strong>{{ bulk_resolved }}</strong> duplicate group{% if bulk_resolved != 1 %}s{% endif %}. Review pending trash in the action queue before executing.
+</div>
+{% endif %}
+
+{% if folder %}
+<div class="mb-6 rounded-lg border border-purple-800/60 bg-purple-950/30 px-4 py-3 text-sm text-purple-200 flex items-center justify-between gap-4">
+  <span>Showing duplicates with at least one file in <span class="font-mono text-purple-100">{{ folder }}</span></span>
+  <a href="/duplicates" class="text-purple-400 hover:text-purple-200 whitespace-nowrap">✕ Clear filter</a>
+</div>
+{% endif %}
+
+<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
+  <div>
+    <h1 class="text-2xl font-bold text-white">Duplicate groups</h1>
+    <p class="text-gray-400 text-sm mt-1">Exact matches first; near matches need careful review before trashing.</p>
+    <label class="mt-4 flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+      <input
+        type="checkbox"
+        id="show-all-checkbox"
+        {% if show_all %}checked{% endif %}
+        class="w-4 h-4 rounded border-gray-600 bg-gray-800 accent-indigo-500"
+      />
+      <span>Show resolved duplicates</span>
+    </label>
+  </div>
+  <div class="flex flex-col gap-3 shrink-0">
+    <div class="flex flex-col sm:flex-row gap-2">
+      <form method="post" action="/duplicates/apply-preferred">
+        <button
+          type="submit"
+          class="w-full sm:w-auto px-4 py-2 rounded-lg bg-teal-800 hover:bg-teal-700 text-white text-sm font-medium border border-teal-600 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+          title="Trash copies outside preferred folders. In-folder copies stay for manual review unless exactly one matches the deepest preferred path (e.g. a child folder you also marked preferred)"
+          {% if not preferred_folder_count %}disabled{% endif %}
+        >
+          Apply preferred folders
+        </button>
+      </form>
+    </div>
+    <div class="flex gap-2">
+      <select id="match-type-select" class="px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-300 text-sm hover:border-gray-600 transition-colors">
+        <option value="all" {% if match_type == 'all' %}selected{% endif %}>All</option>
+        <option value="" {% if not match_type %}selected{% endif %}>Exact &amp; identical</option>
+        <option value="exact" {% if match_type == 'exact' %}selected{% endif %}>Exact only</option>
+        <option value="identical" {% if match_type == 'identical' %}selected{% endif %}>Identical only</option>
+        <option value="near" {% if match_type == 'near' %}selected{% endif %}>Near only</option>
+      </select>
+      <select id="mime-select" class="px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-300 text-sm hover:border-gray-600 transition-colors">
+        <option value="">All types</option>
+        {% for mt in mime_types %}
+        <option value="{{ mt.mime_type }}" {% if mime == mt.mime_type %}selected{% endif %}>{{ mt.mime_type }} ({{ mt.dup_count }})</option>
+        {% endfor %}
+      </select>
+      <select id="sort-select" class="px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-300 text-sm hover:border-gray-600 transition-colors">
+        <option value="match_type" {% if sort_by == 'match_type' %}selected{% endif %}>Sort by type</option>
+        <option value="size" {% if sort_by == 'size' %}selected{% endif %}>Sort by size</option>
+        <option value="added" {% if sort_by == 'added' %}selected{% endif %}>Sort by date added</option>
+      </select>
+      <button id="sort-order-btn" class="px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-300 text-sm hover:border-gray-600 transition-colors whitespace-nowrap">
+        {% if sort_order == 'asc' %}↑ Ascending{% else %}↓ Descending{% endif %}
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var checkbox = document.getElementById('show-all-checkbox');
+  if (checkbox) {
+    checkbox.addEventListener('change', function () {
+      var url = new URL(window.location.href);
+      if (this.checked) {
+        url.searchParams.set('show_all', 'true');
+      } else {
+        url.searchParams.delete('show_all');
+      }
+      url.searchParams.set('page', '1');
+      window.location.assign(url.toString());
+    });
+  }
+
+  var matchTypeSelect = document.getElementById('match-type-select');
+  if (matchTypeSelect) {
+    matchTypeSelect.addEventListener('change', function () {
+      var url = new URL(window.location.href);
+      if (this.value) {
+        url.searchParams.set('match_type', this.value);
+      } else {
+        url.searchParams.delete('match_type');
+      }
+      url.searchParams.set('page', '1');
+      window.location.assign(url.toString());
+    });
+  }
+
+  var mimeSelect = document.getElementById('mime-select');
+  if (mimeSelect) {
+    mimeSelect.addEventListener('change', function () {
+      var url = new URL(window.location.href);
+      if (this.value) {
+        url.searchParams.set('mime', this.value);
+      } else {
+        url.searchParams.delete('mime');
+      }
+      url.searchParams.set('page', '1');
+      window.location.assign(url.toString());
+    });
+  }
+
+  var sortSelect = document.getElementById('sort-select');
+  var sortOrderBtn = document.getElementById('sort-order-btn');
+
+  if (sortSelect) {
+    sortSelect.addEventListener('change', function () {
+      var url = new URL(window.location.href);
+      url.searchParams.set('sort_by', this.value);
+      url.searchParams.set('page', '1');
+      window.location.assign(url.toString());
+    });
+  }
+
+  if (sortOrderBtn) {
+    sortOrderBtn.addEventListener('click', function () {
+      var url = new URL(window.location.href);
+      var currentOrder = url.searchParams.get('sort_order') || 'asc';
+      var newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+      url.searchParams.set('sort_order', newOrder);
+      url.searchParams.set('page', '1');
+      window.location.assign(url.toString());
+    });
+  }
+})();
+</script>
+
+{% if not groups %}
+<p class="text-gray-500 text-sm">No duplicate groups in the database. Run <code class="text-gray-400">librarian dupes find --exact</code> (and optionally <code class="text-gray-400">--near</code>).</p>
+{% else %}
+
+<!-- Bulk action bar -->
+<div id="bulk-bar" class="hidden mb-4 flex items-center gap-3 px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-xl text-sm">
+  <span id="bulk-count" class="text-gray-300">0 selected</span>
+  <button
+    id="bulk-auto-resolve-btn"
+    class="px-3 py-1.5 rounded-lg bg-indigo-700 hover:bg-indigo-600 text-white font-medium transition-colors"
+  >Auto-resolve selected</button>
+  <span class="text-gray-600 text-xs">Uses the detector's recommended keeper for each group. Groups without a recommendation are skipped.</span>
+</div>
+
+<form id="bulk-form" method="post" action="/duplicates/bulk-auto-resolve">
+  <input type="hidden" name="redirect_url" value="" id="bulk-redirect-url" />
+
+{% for section in sections %}
+<section class="mb-10">
+  <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+    {% if section.match_type == 'exact' %}
+    <span class="px-2 py-0.5 rounded text-xs bg-orange-900/50 text-orange-300 border border-orange-800">exact &amp; identical</span>
+    {% else %}
+    <span class="px-2 py-0.5 rounded text-xs bg-yellow-900/50 text-yellow-300 border border-yellow-800">near</span>
+    {% endif %}
+    <span class="text-gray-400 font-normal text-sm">({{ section.groups|length }} groups on this page)</span>
+    <label class="ml-2 flex items-center gap-1.5 text-xs text-gray-400 font-normal cursor-pointer select-none">
+      <input type="checkbox" class="section-select-all w-3.5 h-3.5 rounded accent-indigo-500" data-section="{{ section.match_type }}" />
+      Select all
+    </label>
+  </h2>
+
+  <div class="space-y-4">
+    {% for g in section.groups %}
+    <div class="flex items-start gap-3">
+      <label class="mt-5 shrink-0 cursor-pointer" onclick="event.stopPropagation()">
+        <input
+          type="checkbox"
+          name="group_ids"
+          value="{{ g.group_id }}"
+          class="group-checkbox w-4 h-4 rounded accent-indigo-500"
+          data-section="{{ section.match_type }}"
+        />
+      </label>
+      <a
+        href="/duplicates/{{ g.group_id }}"
+        class="flex-1 block bg-gray-900 rounded-xl border border-gray-800 p-4 hover:border-gray-600 transition-colors"
+      >
+        <div class="flex flex-col lg:flex-row lg:items-center gap-4">
+          <div class="flex flex-wrap gap-2 shrink-0">
+            {% for mid in g.member_ids %}
+            <div class="w-16 h-16 rounded-lg overflow-hidden bg-gray-800 border border-gray-700 shrink-0">
+              <img src="/thumbs/{{ mid }}" alt="" class="w-full h-full object-cover" loading="lazy" />
+            </div>
+            {% endfor %}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-mono text-xs text-gray-500 truncate">{{ g.first_filename }}</div>
+            <div class="flex flex-wrap gap-x-6 gap-y-1 mt-2 text-sm">
+              <span class="text-gray-300"><span class="text-gray-500">Members</span> {{ g.member_count | format_number }}</span>
+              <span class="text-gray-300"><span class="text-gray-500">Total size</span> {{ g.total_bytes | format_bytes }}</span>
+              <span class="text-amber-300/90"><span class="text-gray-500">Reclaimable</span> {{ g.reclaimable_bytes | format_bytes }}</span>
+              {% if g.is_identical %}
+              <span class="px-1.5 py-0.5 rounded text-xs bg-orange-900/40 text-orange-300 border border-orange-800/60">identical</span>
+              {% elif g.match_type == 'near' and g.min_confidence is not none %}
+              <span class="text-gray-400 text-xs">{{ (g.min_confidence * 100) | round | int }}% match</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="text-indigo-400 text-sm font-medium shrink-0">Open group →</div>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+</section>
+{% endfor %}
+
+</form>
+
+<script>
+(function () {
+  var bulkBar = document.getElementById('bulk-bar');
+  var bulkCount = document.getElementById('bulk-count');
+  var bulkBtn = document.getElementById('bulk-auto-resolve-btn');
+  var bulkForm = document.getElementById('bulk-form');
+  var bulkRedirectUrl = document.getElementById('bulk-redirect-url');
+
+  function updateBulkBar() {
+    var checked = document.querySelectorAll('.group-checkbox:checked');
+    var n = checked.length;
+    bulkCount.textContent = n + ' selected';
+    if (n > 0) {
+      bulkBar.classList.remove('hidden');
+    } else {
+      bulkBar.classList.add('hidden');
+    }
+  }
+
+  document.querySelectorAll('.group-checkbox').forEach(function (cb) {
+    cb.addEventListener('change', updateBulkBar);
+  });
+
+  document.querySelectorAll('.section-select-all').forEach(function (cb) {
+    cb.addEventListener('change', function () {
+      var section = this.dataset.section;
+      document.querySelectorAll('.group-checkbox[data-section="' + section + '"]').forEach(function (gcb) {
+        gcb.checked = cb.checked;
+      });
+      updateBulkBar();
+    });
+  });
+
+  bulkBtn.addEventListener('click', function (e) {
+    e.preventDefault();
+    bulkRedirectUrl.value = window.location.href;
+    bulkForm.submit();
+  });
+})();
+</script>
+
+<!-- Pagination -->
+<div class="mt-8 flex flex-wrap items-center justify-between gap-4 text-sm text-gray-400">
+  <span>
+    {% if groups_total > 0 %}
+    Page {{ groups_page }} of {{ groups_total_pages }} ({{ groups_total | format_number }} groups)
+    {% endif %}
+  </span>
+  <div class="flex items-center gap-3">
+    {% if groups_total_pages > 1 %}
+    <div class="flex gap-2">
+      {% if groups_page > 1 %}
+      <a
+        href="/duplicates?page={{ groups_page - 1 }}{% if show_all %}&show_all=true{% endif %}&sort_by={{ sort_by }}&sort_order={{ sort_order }}{% if mime %}&mime={{ mime }}{% endif %}{% if folder %}&folder={{ folder | urlencode }}{% endif %}&per_page={{ per_page }}"
+        class="px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 hover:bg-gray-700 transition-colors"
+      >← Prev</a>
+      {% endif %}
+      {% if groups_page < groups_total_pages %}
+      <a
+        href="/duplicates?page={{ groups_page + 1 }}{% if show_all %}&show_all=true{% endif %}&sort_by={{ sort_by }}&sort_order={{ sort_order }}{% if mime %}&mime={{ mime }}{% endif %}{% if folder %}&folder={{ folder | urlencode }}{% endif %}&per_page={{ per_page }}"
+        class="px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 hover:bg-gray-700 transition-colors"
+      >Next →</a>
+      {% endif %}
+    </div>
+    {% endif %}
+    <label class="flex items-center gap-2 text-gray-400">
+      <span>Per page</span>
+      <select id="per-page-select" class="px-2 py-1.5 rounded-lg bg-gray-800 border border-gray-700 text-gray-300 text-sm hover:border-gray-600 transition-colors">
+        {% for n in [25, 50, 100, 250, 500, 1000, 2000] %}
+        <option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+</div>
+<script>
+(function () {
+  var perPageSelect = document.getElementById('per-page-select');
+  if (perPageSelect) {
+    perPageSelect.addEventListener('change', function () {
+      var url = new URL(window.location.href);
+      url.searchParams.set('per_page', this.value);
+      url.searchParams.set('page', '1');
+      window.location.assign(url.toString());
+    });
+  }
+})();
+</script>
+
+{% endif %}
+{% endblock %}

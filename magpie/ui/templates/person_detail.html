@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+{% block title %}{{ person.name }} — Digital Librarian{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+  <div class="flex items-center justify-between mb-4">
+    <a href="/people" class="text-sm text-gray-400 hover:text-gray-300 transition-colors">← Back to faces</a>
+    <button
+      id="delete-person-btn"
+      type="button"
+      class="text-xs px-3 py-1.5 rounded border border-red-800 bg-red-950/40 text-red-400 hover:bg-red-950/60 transition-colors"
+    >Delete Person</button>
+  </div>
+  <div>
+    <h1 class="text-2xl font-bold text-white">{{ person.name }}</h1>
+    <p class="text-gray-400 text-sm mt-1">{{ confirmed|length }} photo{% if confirmed|length != 1 %}s{% endif %}</p>
+  </div>
+</div>
+
+<script>
+  document.getElementById('delete-person-btn').addEventListener('click', async function() {
+    const personName = "{{ person.name }}";
+    if (!confirm(`Delete ${personName} and ALL their face tags? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/people/{{ person.id }}/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      console.log('Delete response status:', response.status);
+
+      if (response.ok) {
+        window.location.href = '/people';
+      } else {
+        const errorText = await response.text();
+        console.error('Delete failed with status:', response.status);
+        console.error('Response body:', errorText);
+        alert(`Failed to delete person (${response.status}): ${errorText}`);
+      }
+    } catch (error) {
+      console.error('Fetch error:', error);
+      alert(`Error deleting person: ${error.message}`);
+    }
+  });
+</script>
+
+{% if confirmed %}
+<section class="mb-12">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+      Confirmed
+      <span class="text-xs bg-green-900/50 text-green-300 border border-green-800 rounded px-2 py-0.5">{{ confirmed_pagination.total }}</span>
+    </h2>
+    <div class="flex items-center gap-2">
+      <button
+        id="confirmed-select-all-btn"
+        type="button"
+        class="text-xs px-3 py-1 rounded border border-gray-600 bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors"
+      >Select All</button>
+      <button
+        id="confirmed-remove-btn"
+        type="button"
+        disabled
+        class="text-xs px-3 py-1 rounded border border-red-700 bg-red-900/30 text-red-300 hover:bg-red-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >Remove Selected</button>
+    </div>
+  </div>
+
+  <div id="confirmed-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-4">
+    {% for file in confirmed %}
+    <div class="confirmed-face-wrapper relative" data-file-id="{{ file.id }}" data-face-index="{{ file.face_index }}">
+      <input
+        type="checkbox"
+        class="confirmed-checkbox absolute top-2 left-2 z-10 w-4 h-4 cursor-pointer"
+        data-file-id="{{ file.id }}"
+        data-face-index="{{ file.face_index }}"
+      />
+      <a href="/files/{{ file.id }}" class="group block peer">
+        <div class="rounded-lg overflow-hidden bg-gray-800 border border-gray-700 hover:border-gray-500 transition-colors peer-focus:ring-2 peer-focus:ring-indigo-500">
+          <div class="aspect-square overflow-hidden bg-gray-700">
+            <img src="/thumbs/{{ file.id }}" alt="" class="w-full h-full object-cover group-hover:opacity-75 transition-opacity" loading="lazy" />
+          </div>
+          <div class="p-2">
+            <div class="text-xs text-gray-300 truncate" title="{{ file.path }}">{{ file.path|basename }}</div>
+          </div>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if confirmed_pagination.total_pages > 1 %}
+  <div class="flex items-center justify-between py-4 border-t border-gray-700">
+    <div class="text-xs text-gray-400">
+      Page {{ confirmed_pagination.page }} of {{ confirmed_pagination.total_pages }} ({{ confirmed_pagination.total }} total)
+    </div>
+    <div class="flex items-center gap-2">
+      {% if confirmed_pagination.has_prev %}
+      <a href="/people/{{ person.id }}?confirmed_page={{ confirmed_pagination.prev_page }}&speculative_page={{ pagination.page }}" class="text-xs px-3 py-1.5 rounded border border-gray-600 bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors">← Previous</a>
+      {% else %}
+      <button type="button" disabled class="text-xs px-3 py-1.5 rounded border border-gray-600 bg-gray-800 text-gray-500 cursor-not-allowed opacity-50">← Previous</button>
+      {% endif %}
+      {% if confirmed_pagination.has_next %}
+      <a href="/people/{{ person.id }}?confirmed_page={{ confirmed_pagination.next_page }}&speculative_page={{ pagination.page }}" class="text-xs px-3 py-1.5 rounded border border-gray-600 bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors">Next →</a>
+      {% else %}
+      <button type="button" disabled class="text-xs px-3 py-1.5 rounded border border-gray-600 bg-gray-800 text-gray-500 cursor-not-allowed opacity-50">Next →</button>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <script>
+    (function() {
+      const selectAllBtn = document.getElementById('confirmed-select-all-btn');
+      const removeBtn = document.getElementById('confirmed-remove-btn');
+      const checkboxes = document.querySelectorAll('.confirmed-checkbox');
+      const wrappers = document.querySelectorAll('.confirmed-face-wrapper');
+
+      function updateButtonState() {
+        const selectedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+        removeBtn.disabled = selectedCount === 0;
+      }
+
+      function updateWrapperStyle(wrapper, isChecked) {
+        if (isChecked) {
+          wrapper.classList.add('ring-2', 'ring-red-500', 'rounded-lg');
+        } else {
+          wrapper.classList.remove('ring-2', 'ring-red-500', 'rounded-lg');
+        }
+      }
+
+      checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+          const wrapper = this.closest('.confirmed-face-wrapper');
+          updateWrapperStyle(wrapper, this.checked);
+          updateButtonState();
+        });
+      });
+
+      selectAllBtn.addEventListener('click', function() {
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        checkboxes.forEach(checkbox => {
+          checkbox.checked = !allChecked;
+          const wrapper = checkbox.closest('.confirmed-face-wrapper');
+          updateWrapperStyle(wrapper, checkbox.checked);
+        });
+        updateButtonState();
+        selectAllBtn.textContent = !allChecked ? 'Deselect All' : 'Select All';
+      });
+
+      removeBtn.addEventListener('click', async function() {
+        const selectedFaces = Array.from(checkboxes)
+          .filter(cb => cb.checked)
+          .map(cb => ({
+            file_id: cb.dataset.fileId,
+            face_index: parseInt(cb.dataset.faceIndex)
+          }));
+
+        if (selectedFaces.length === 0) return;
+
+        console.log('Sending remove request for faces:', selectedFaces);
+
+        try {
+          const response = await fetch('/people/{{ person.id }}/remove-multiple', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ faces: selectedFaces })
+          });
+
+          console.log('Remove response status:', response.status);
+
+          if (response.ok) {
+            window.location.href = '/people/{{ person.id }}';
+          } else {
+            const errorText = await response.text();
+            console.error('Remove failed with status:', response.status);
+            console.error('Response body:', errorText);
+            alert(`Failed to remove faces: ${errorText}`);
+          }
+        } catch (error) {
+          console.error('Fetch error:', error);
+          alert(`Error removing faces: ${error.message}`);
+        }
+      });
+
+      // Initialize button state
+      updateButtonState();
+    })();
+  </script>
+</section>
+{% endif %}
+
+{% if speculative %}
+<section>
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+      Possibly this person
+      <span class="text-xs bg-amber-900/50 text-amber-300 border border-amber-800 rounded px-2 py-0.5">{{ pagination.total }}</span>
+    </h2>
+    <div class="flex items-center gap-2">
+      <button
+        id="select-all-btn"
+        type="button"
+        class="text-xs px-3 py-1 rounded border border-amber-700 bg-amber-900/30 text-amber-300 hover:bg-amber-900/50 transition-colors"
+      >Select All</button>
+      <button
+        id="bulk-approve-btn"
+        type="button"
+        disabled
+        class="text-xs px-3 py-1 rounded border border-green-700 bg-green-900/30 text-green-300 hover:bg-green-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >Approve Selected</button>
+    </div>
+  </div>
+
+  <div id="speculative-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-4">
+    {% for file in speculative %}
+    <div class="speculative-face-wrapper relative" data-file-id="{{ file.id }}" data-face-index="{{ file.face_index }}">
+      <input
+        type="checkbox"
+        class="speculative-checkbox absolute top-2 left-2 z-10 w-4 h-4 cursor-pointer"
+        data-file-id="{{ file.id }}"
+        data-face-index="{{ file.face_index }}"
+      />
+      <a href="/files/{{ file.id }}" class="group block peer">
+        <div class="rounded-lg overflow-hidden bg-gray-800 border border-amber-700/40 hover:border-amber-600/60 transition-colors peer-focus:ring-2 peer-focus:ring-indigo-500">
+          <div class="aspect-square overflow-hidden bg-gray-700 relative">
+            <img src="/thumbs/{{ file.id }}" alt="" class="w-full h-full object-cover group-hover:opacity-75 transition-opacity" loading="lazy" />
+            <div class="absolute bottom-0 right-0 text-xs bg-amber-900/80 text-amber-200 px-1.5 py-0.5 rounded-tl">{{ (file.distance * 100)|int }}%</div>
+          </div>
+          <div class="p-2">
+            <div class="text-xs text-gray-300 truncate" title="{{ file.path }}">{{ file.path|basename }}</div>
+          </div>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if pagination.total_pages > 1 %}
+  <div class="flex items-center justify-between py-4 border-t border-gray-700">
+    <div class="text-xs text-gray-400">
+      Page {{ pagination.page }} of {{ pagination.total_pages }} ({{ pagination.total }} total)
+    </div>
+    <div class="flex items-center gap-2">
+      {% if pagination.has_prev %}
+      <a href="/people/{{ person.id }}?confirmed_page={{ confirmed_pagination.page }}&speculative_page={{ pagination.prev_page }}" class="text-xs px-3 py-1.5 rounded border border-amber-700 bg-amber-900/30 text-amber-300 hover:bg-amber-900/50 transition-colors">← Previous</a>
+      {% else %}
+      <button type="button" disabled class="text-xs px-3 py-1.5 rounded border border-gray-600 bg-gray-800 text-gray-500 cursor-not-allowed opacity-50">← Previous</button>
+      {% endif %}
+      {% if pagination.has_next %}
+      <a href="/people/{{ person.id }}?confirmed_page={{ confirmed_pagination.page }}&speculative_page={{ pagination.next_page }}" class="text-xs px-3 py-1.5 rounded border border-amber-700 bg-amber-900/30 text-amber-300 hover:bg-amber-900/50 transition-colors">Next →</a>
+      {% else %}
+      <button type="button" disabled class="text-xs px-3 py-1.5 rounded border border-gray-600 bg-gray-800 text-gray-500 cursor-not-allowed opacity-50">Next →</button>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <script>
+    (function() {
+      const selectAllBtn = document.getElementById('select-all-btn');
+      const bulkApprovBtn = document.getElementById('bulk-approve-btn');
+      const checkboxes = document.querySelectorAll('.speculative-checkbox');
+      const speculativeWrappers = document.querySelectorAll('.speculative-face-wrapper');
+
+      function updateButtonState() {
+        const selectedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+        bulkApprovBtn.disabled = selectedCount === 0;
+      }
+
+      function updateWrapperStyle(wrapper, isChecked) {
+        if (isChecked) {
+          wrapper.classList.add('ring-2', 'ring-green-500', 'rounded-lg');
+        } else {
+          wrapper.classList.remove('ring-2', 'ring-green-500', 'rounded-lg');
+        }
+      }
+
+      checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+          const wrapper = this.closest('.speculative-face-wrapper');
+          updateWrapperStyle(wrapper, this.checked);
+          updateButtonState();
+        });
+      });
+
+      selectAllBtn.addEventListener('click', function() {
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        checkboxes.forEach(checkbox => {
+          checkbox.checked = !allChecked;
+          const wrapper = checkbox.closest('.speculative-face-wrapper');
+          updateWrapperStyle(wrapper, checkbox.checked);
+        });
+        updateButtonState();
+        selectAllBtn.textContent = !allChecked ? 'Deselect All' : 'Select All';
+      });
+
+      bulkApprovBtn.addEventListener('click', async function() {
+        const selectedFaces = Array.from(checkboxes)
+          .filter(cb => cb.checked)
+          .map(cb => ({
+            file_id: cb.dataset.fileId,
+            face_index: parseInt(cb.dataset.faceIndex)
+          }));
+
+        if (selectedFaces.length === 0) return;
+
+        try {
+          const response = await fetch('/people/{{ person.id }}/confirm-multiple', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ faces: selectedFaces })
+          });
+
+          if (response.ok) {
+            window.location.href = '/people/{{ person.id }}';
+          } else {
+            alert('Failed to approve faces');
+          }
+        } catch (error) {
+          console.error('Error:', error);
+          alert('Error approving faces');
+        }
+      });
+
+      // Initialize button state
+      updateButtonState();
+    })();
+  </script>
+</section>
+{% endif %}
+
+{% if not confirmed and not speculative %}
+<div class="rounded-lg border border-gray-700 bg-gray-900/60 p-6 text-center">
+  <p class="text-gray-400 text-sm">No photos found.</p>
+</div>
+{% endif %}
+{% endblock %}

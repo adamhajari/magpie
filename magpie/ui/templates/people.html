@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Faces — Digital Librarian{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+  <h1 class="text-2xl font-bold text-white mb-2">Faces</h1>
+  <p class="text-gray-400 text-sm">
+    Named people and unlabeled face clusters. Run <code class="text-gray-300">librarian analyze faces &lt;path&gt;</code> to detect faces, then <code class="text-gray-300">librarian faces cluster</code> to group them.
+  </p>
+</div>
+
+{% if not named_people and not clusters and unclustered_count == 0 %}
+<div class="rounded-lg border border-gray-700 bg-gray-900/60 p-6 text-center">
+  <p class="text-gray-400 text-sm">No faces found. Run <code class="text-gray-300">librarian analyze faces</code> first.</p>
+</div>
+{% else %}
+
+{% if named_people %}
+<section class="mb-12">
+  <div class="flex items-center gap-2 mb-6">
+    <h2 class="text-lg font-semibold text-white">Named people</h2>
+    <span class="text-xs bg-indigo-900/50 text-indigo-300 border border-indigo-800 rounded px-2 py-0.5">{{ named_people|length }}</span>
+  </div>
+
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+    {% for person in named_people %}
+    <a href="/people/{{ person.id }}" class="group">
+      <div class="rounded-lg overflow-hidden bg-gray-800 border border-gray-700 hover:border-gray-500 transition-colors cursor-pointer">
+        {% if person.sample_file_id %}
+        <div class="aspect-square overflow-hidden bg-gray-700">
+          <img src="/faces/{{ person.sample_file_id }}/{{ person.sample_face_index }}" alt="" class="w-full h-full object-cover group-hover:opacity-75 transition-opacity" loading="lazy" />
+        </div>
+        {% else %}
+        <div class="aspect-square bg-gray-700 flex items-center justify-center text-gray-500">—</div>
+        {% endif %}
+        <div class="p-3">
+          <div class="font-medium text-sm text-white truncate">{{ person.name }}</div>
+          <div class="text-xs text-gray-400 mt-1">{{ person.photo_count }} photo{% if person.photo_count != 1 %}s{% endif %}</div>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if clusters_total > 0 %}
+<section class="mb-12">
+  <div class="flex items-center gap-2 mb-6">
+    <h2 class="text-lg font-semibold text-white">Unlabeled clusters</h2>
+    <span class="text-xs bg-amber-900/50 text-amber-300 border border-amber-800 rounded px-2 py-0.5">{{ clusters_total }}</span>
+  </div>
+
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+    {% for cluster in clusters %}
+    <a href="/people/cluster/{{ cluster.cluster_id }}" class="group">
+      <div class="rounded-lg overflow-hidden bg-gray-800 border border-gray-700 hover:border-gray-500 transition-colors cursor-pointer">
+        {% if cluster.sample_file_id %}
+        <div class="aspect-square overflow-hidden bg-gray-700">
+          <img src="/faces/{{ cluster.sample_file_id }}/{{ cluster.sample_face_index }}" alt="" class="w-full h-full object-cover group-hover:opacity-75 transition-opacity" loading="lazy" />
+        </div>
+        {% else %}
+        <div class="aspect-square bg-gray-700 flex items-center justify-center text-gray-500">—</div>
+        {% endif %}
+        <div class="p-3">
+          <div class="font-medium text-sm text-white">Unknown group</div>
+          <div class="text-xs text-gray-400 mt-1">{{ cluster.face_count }} face{% if cluster.face_count != 1 %}s{% endif %}</div>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  {% if clusters_total_pages > 1 %}
+  <div class="flex items-center justify-between mt-4 text-sm text-gray-400">
+    <span>Page {{ clusters_page }} of {{ clusters_total_pages }} ({{ clusters_total }} groups)</span>
+    <div class="flex gap-2">
+      {% if clusters_page > 1 %}
+      <a
+        href="/people?page={{ clusters_page - 1 }}"
+        class="px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 hover:bg-gray-700 transition-colors"
+      >← Prev</a>
+      {% endif %}
+      {% if clusters_page < clusters_total_pages %}
+      <a
+        href="/people?page={{ clusters_page + 1 }}"
+        class="px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 hover:bg-gray-700 transition-colors"
+      >Next →</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if unclustered_count > 0 %}
+<section class="mb-12">
+  <div class="flex items-center gap-2 mb-6">
+    <h2 class="text-lg font-semibold text-white">Unclustered faces</h2>
+    <span class="text-xs bg-gray-700 text-gray-400 border border-gray-600 rounded px-2 py-0.5">{{ unclustered_count }}</span>
+  </div>
+
+  <p class="text-gray-400 text-sm">Run <code class="text-gray-300">librarian faces cluster</code> to group these faces by similarity.</p>
+</section>
+{% endif %}
+
+{% endif %}
+{% endblock %}

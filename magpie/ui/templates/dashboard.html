@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Digital Librarian{% endblock %}
+
+{% block content %}
+<div class="mb-8 flex items-center justify-between">
+  <div>
+    <h1 class="text-2xl font-bold text-white">Dashboard</h1>
+    <p class="text-gray-400 text-sm mt-1">Overview of your indexed file collection</p>
+  </div>
+  <button
+    onclick="location.href='/?refresh=true{% if selected_drive_id %}&drive_id={{ selected_drive_id }}{% endif %}'"
+    class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded-lg border border-gray-700 transition-colors"
+    title="Reload fresh data from database"
+  >
+    🔄 Reload Fresh
+  </button>
+</div>
+
+<div id="dashboard-content">
+  {% if drives %}
+  <div class="mt-4">
+    <label for="drive-filter" class="text-sm text-gray-400">Filter by Drive:</label>
+    <select
+      id="drive-filter"
+      name="drive_id"
+      class="mt-2 bg-gray-800 text-white text-sm rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none"
+      hx-get="/"
+      hx-target="#dashboard-content"
+      hx-swap="innerHTML"
+      hx-push-url="true"
+    >
+      <option value="">All Drives</option>
+      {% for drive in drives %}
+      <option value="{{ drive.id }}" {% if drive.id == selected_drive_id %}selected{% endif %}>{{ drive.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Top-level stats -->
+<div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
+  <div class="bg-gray-900 rounded-xl p-5 border border-gray-800">
+    <div class="text-3xl font-bold text-white">{{ stats.total_files | format_number }}</div>
+    <div class="text-sm text-gray-400 mt-1">Total Files</div>
+  </div>
+  <div class="bg-gray-900 rounded-xl p-5 border border-gray-800">
+    <div class="text-3xl font-bold text-white">{{ stats.total_size | format_bytes }}</div>
+    <div class="text-sm text-gray-400 mt-1">Total Size</div>
+  </div>
+  <div class="bg-gray-900 rounded-xl p-5 border border-gray-800">
+    <div class="text-3xl font-bold text-amber-400">{{ stats.duplicate_file_count | format_number }}</div>
+    <div class="text-sm text-gray-400 mt-1">Files in Duplicate Groups</div>
+    <div class="text-xs text-gray-500 mt-1">{{ stats.duplicate_file_total_size | format_bytes }}</div>
+  </div>
+  <div class="bg-gray-900 rounded-xl p-5 border border-gray-800">
+    <div class="text-3xl font-bold text-red-400">{{ stats.trash_duplicate_file_count | format_number }}</div>
+    <div class="text-sm text-gray-400 mt-1">Trash Files With Duplicate Copies</div>
+    <div class="text-xs text-gray-500 mt-1">{{ stats.trash_duplicate_total_size | format_bytes }}</div>
+  </div>
+  <div class="bg-gray-900 rounded-xl p-5 border border-gray-800">
+    <div class="text-3xl font-bold text-green-400">{{ stats.labeled_count | format_number }}</div>
+    <div class="text-sm text-gray-400 mt-1">Labeled Files</div>
+    {% if stats.total_files > 0 %}
+    <div class="text-xs text-gray-500 mt-1">{{ stats.unlabeled_count | format_number }} unlabeled</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Storage categories -->
+  <div class="bg-gray-900 rounded-xl border border-gray-800 p-5 mb-6">
+    <h2 class="text-base font-semibold text-white mb-4">Storage Categories</h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Hot Storage -->
+      <div class="border-r border-gray-800 pr-6 md:pr-6">
+        <h3 class="text-sm font-medium text-green-400 mb-3 flex items-center">
+          <span class="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+          Hot Storage
+        </h3>
+        <div class="space-y-2 text-xs">
+          <div class="flex justify-between">
+            <span class="text-gray-400">Approved</span>
+            <span class="text-gray-200">{{ stats.hot_labeled_count | format_number }}</span>
+          </div>
+          <div class="text-gray-500 text-xs">{{ stats.hot_labeled_size | format_bytes }}</div>
+
+          <div class="flex justify-between mt-2">
+            <span class="text-gray-400">Pending</span>
+            <span class="text-amber-400">{{ stats.hot_pending_count | format_number }}</span>
+          </div>
+          <div class="text-gray-500 text-xs">{{ stats.hot_pending_size | format_bytes }}</div>
+
+          <div class="flex justify-between mt-2 pt-2 border-t border-gray-800">
+            <span class="text-gray-400">Moved</span>
+            <span class="text-blue-400">{{ stats.hot_moved_count | format_number }}</span>
+          </div>
+          <div class="text-gray-500 text-xs">{{ stats.hot_moved_size | format_bytes }}</div>
+        </div>
+      </div>
+
+      <!-- Cold Storage -->
+      <div class="border-r border-gray-800 pr-6 md:pr-6">
+        <h3 class="text-sm font-medium text-blue-400 mb-3 flex items-center">
+          <span class="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>
+          Cold Storage
+        </h3>
+        <div class="space-y-2 text-xs">
+          <div class="flex justify-between">
+            <span class="text-gray-400">Approved</span>
+            <span class="text-gray-200">{{ stats.cold_labeled_count | format_number }}</span>
+          </div>
+          <div class="text-gray-500 text-xs">{{ stats.cold_labeled_size | format_bytes }}</div>
+
+          <div class="flex justify-between mt-2">
+            <span class="text-gray-400">Pending</span>
+            <span class="text-amber-400">{{ stats.cold_pending_count | format_number }}</span>
+          </div>
+          <div class="text-gray-500 text-xs">{{ stats.cold_pending_size | format_bytes }}</div>
+
+          <div class="flex justify-between mt-2 pt-2 border-t border-gray-800">
+            <span class="text-gray-400">Moved</span>
+            <span class="text-blue-400">{{ stats.cold_moved_count | format_number }}</span>
+          </div>
+          <div class="text-gray-500 text-xs">{{ stats.cold_moved_size | format_bytes }}</div>
+        </div>
+      </div>
+
+      <!-- Trash -->
+      <div>
+        <h3 class="text-sm font-medium text-red-400 mb-3 flex items-center">
+          <span class="w-2 h-2 bg-red-400 rounded-full mr-2"></span>
+          Trash
+        </h3>
+        <div class="space-y-2 text-xs">
+          <div class="flex justify-between">
+            <span class="text-gray-400">Approved</span>
+            <span class="text-gray-200">{{ stats.trash_labeled_count | format_number }}</span>
+          </div>
+          <div class="text-gray-500 text-xs">{{ stats.trash_labeled_size | format_bytes }}</div>
+
+          <div class="flex justify-between mt-2">
+            <span class="text-gray-400">Pending</span>
+            <span class="text-amber-400">{{ stats.trash_pending_count | format_number }}</span>
+          </div>
+          <div class="text-gray-500 text-xs">{{ stats.trash_pending_size | format_bytes }}</div>
+
+          <div class="flex justify-between mt-2 pt-2 border-t border-gray-800">
+            <span class="text-gray-400">Moved</span>
+            <span class="text-blue-400">{{ stats.trash_moved_count | format_number }}</span>
+          </div>
+          <div class="text-gray-500 text-xs">{{ stats.trash_moved_size | format_bytes }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Unlabeled section -->
+    <div class="mt-4 pt-4 border-t border-gray-800">
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-400">Unlabeled</span>
+        <span class="text-sm font-medium text-gray-300">{{ stats.unlabeled_count | format_number }}</span>
+      </div>
+      <div class="text-xs text-gray-500 mt-1">{{ stats.unlabeled_size | format_bytes }}</div>
+    </div>
+  </div>
+
+<!-- Bottom section with Files by Type and Labels breakdown -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+  <!-- MIME type breakdown -->
+  <div class="bg-gray-900 rounded-xl border border-gray-800 p-5">
+    <h2 class="text-base font-semibold text-white mb-4">Files by Type</h2>
+    {% if stats.by_mime %}
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-gray-500 text-xs uppercase tracking-wide">
+          <th class="text-left pb-2">MIME Type</th>
+          <th class="text-right pb-2">Files</th>
+          <th class="text-right pb-2">Size</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-800">
+        {% for row in stats.by_mime %}
+        <tr class="hover:bg-gray-800/50">
+          <td class="py-2 text-gray-300 font-mono">{{ row.mime_type or "unknown" }}</td>
+          <td class="py-2 text-right text-gray-200">{{ row.count | format_number }}</td>
+          <td class="py-2 text-right text-gray-400">{{ row.total_bytes | format_bytes }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-gray-500 text-sm">No files indexed yet.</p>
+    {% endif %}
+  </div>
+
+  <!-- Labels breakdown -->
+  <div class="bg-gray-900 rounded-xl border border-gray-800 p-5">
+    <h2 class="text-base font-semibold text-white mb-4">Label Status</h2>
+
+    <div class="space-y-3 mb-6">
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-400">Labeled (any)</span>
+        <span class="text-sm font-medium text-gray-200">{{ stats.labeled_count | format_number }}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-400">Pending approval</span>
+        <span class="text-sm font-medium text-amber-400">{{ stats.pending_approval_count | format_number }}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-400">Approved</span>
+        <span class="text-sm font-medium text-green-400">{{ stats.approved_count | format_number }}</span>
+      </div>
+    </div>
+
+    <h2 class="text-base font-semibold text-white mb-3">Duplicate Groups</h2>
+    <div class="space-y-3">
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-400">Total groups</span>
+        <span class="text-sm font-medium text-gray-200">{{ stats.duplicate_group_count | format_number }}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-400">Exact duplicates</span>
+        <span class="text-sm font-medium text-gray-200">{{ stats.exact_duplicate_count | format_number }}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-400">Near duplicates</span>
+        <span class="text-sm font-medium text-gray-200">{{ stats.near_duplicate_count | format_number }}</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

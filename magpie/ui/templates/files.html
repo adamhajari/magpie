@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+{% block title %}Files — Digital Librarian{% endblock %}
+{% block main_class %}px-6 py-8 w-full{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex items-center justify-between">
+  <div>
+    <h1 class="text-2xl font-bold text-white">Files</h1>
+    <p class="text-gray-400 text-sm mt-1">{{ total | format_number }} file{{ 's' if total != 1 else '' }} found</p>
+  </div>
+  <a href="/folders?path={{ active_path | urlencode }}" class="text-sm text-gray-400 hover:text-white transition-colors">📂 Browse folders</a>
+</div>
+
+{% if breadcrumbs %}
+<!-- Breadcrumb path filter -->
+<nav class="flex flex-wrap items-center gap-1 text-sm mb-4 bg-gray-900 border border-gray-800 rounded-xl px-4 py-2">
+  <a href="/files" class="text-indigo-400 hover:text-indigo-200 transition-colors">All files</a>
+  {% for crumb in breadcrumbs %}
+  <span class="text-gray-600">/</span>
+  {% if loop.last %}
+  <span class="text-gray-200 font-medium">{{ crumb.name }}</span>
+  {% else %}
+  <a href="/files?path={{ crumb.path | urlencode }}&recursive=true" class="text-indigo-400 hover:text-indigo-200 transition-colors">{{ crumb.name }}</a>
+  {% endif %}
+  {% endfor %}
+  {% if filters.recursive == 'true' %}
+  <span class="ml-2 text-xs text-gray-600">(recursive)</span>
+  <a href="/files?path={{ active_path | urlencode }}&recursive=false" class="ml-1 text-xs text-gray-500 hover:text-gray-300">show flat</a>
+  {% else %}
+  <span class="ml-2 text-xs text-gray-600">(this folder only)</span>
+  <a href="/files?path={{ active_path | urlencode }}&recursive=true" class="ml-1 text-xs text-gray-500 hover:text-gray-300">show all</a>
+  {% endif %}
+</nav>
+{% endif %}
+
+<!-- Layout: sidebar + main -->
+<div class="flex gap-6">
+
+  <!-- Folder tree sidebar -->
+  <aside id="folder-sidebar" class="hidden lg:block w-56 xl:w-64 flex-shrink-0">
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-3 sticky top-4 max-h-[80vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-2 px-1">
+        <span class="text-xs text-gray-500 uppercase tracking-wide">Folders</span>
+        <a href="/folders" class="text-xs text-indigo-500 hover:text-indigo-300">Full tree</a>
+      </div>
+      <a href="/files" class="block text-xs text-gray-400 hover:text-white px-2 py-1 rounded hover:bg-gray-800 mb-1 {% if not active_path %}font-medium text-white{% endif %}">
+        All files
+      </a>
+      <!-- Subfolders of the current path (flat list) -->
+      <div id="sidebar-tree"
+           hx-get="/folders/children"
+           hx-trigger="load delay:100ms, #filter-form:change from:#filter-form [name='show_trash']"
+           hx-include="#filter-form [name='path'], #filter-form [name='show_trash']"
+           hx-swap="innerHTML swap:0.3s"
+           hx-indicator="#sidebar-loading">
+        <p id="sidebar-loading" class="text-xs text-gray-700 px-2 py-1 htmx-indicator">Loading folders…</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <div class="flex-1 min-w-0">
+
+    <!-- Filter bar -->
+    <form
+      id="filter-form"
+      hx-get="/files"
+      hx-target="#files-region"
+      hx-push-url="true"
+      hx-trigger="change, submit"
+      class="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"
+    >
+      <!-- Hidden path/recursive/per_page carry-through -->
+      <input type="hidden" name="path" value="{{ filters.path }}" />
+      <input type="hidden" name="recursive" value="{{ filters.recursive }}" />
+      <input type="hidden" name="per_page" value="{{ filters.per_page }}" />
+      <!-- Hidden input provides default value when checkbox is unchecked -->
+      <input type="hidden" name="show_trash" value="" />
+
+      <!-- MIME type -->
+      <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-500 uppercase tracking-wide">Type</label>
+        <select name="mime" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          <option value="">All types</option>
+          {% for mt in mime_types %}
+          <option value="{{ mt }}" {% if filters.mime == mt %}selected{% endif %}>{{ mt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Drive -->
+      <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-500 uppercase tracking-wide">Drive</label>
+        <select name="drive_id" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          <option value="">All drives</option>
+          {% for d in drives %}
+          <option value="{{ d.id }}" {% if filters.drive_id == d.id %}selected{% endif %}>{{ d.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Label status -->
+      <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-500 uppercase tracking-wide">Label</label>
+        <select name="label_status" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          <option value="">All</option>
+          <option value="unlabeled" {% if filters.label_status == 'unlabeled' %}selected{% endif %}>Unlabelled</option>
+          <option value="keep_hot" {% if filters.label_status == 'keep_hot' %}selected{% endif %}>Hot</option>
+          <option value="keep_cold" {% if filters.label_status == 'keep_cold' %}selected{% endif %}>Cold</option>
+          <option value="trash" {% if filters.label_status == 'trash' %}selected{% endif %}>Trash</option>
+        </select>
+      </div>
+
+      <!-- Date from -->
+      <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-500 uppercase tracking-wide">From</label>
+        <input type="date" name="date_from" value="{{ filters.date_from }}"
+          class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+      </div>
+
+      <!-- Date to -->
+      <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-500 uppercase tracking-wide">To</label>
+        <input type="date" name="date_to" value="{{ filters.date_to }}"
+          class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+      </div>
+
+      <!-- Filename search -->
+      <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-500 uppercase tracking-wide">Filename</label>
+        <input type="text" name="filename_pattern" value="{{ filters.filename_pattern }}"
+          placeholder="e.g. *.jpg"
+          hx-get="/files"
+          hx-target="#files-region"
+          hx-push-url="true"
+          hx-trigger="input delay:500ms"
+          hx-include="#filter-form"
+          class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+      </div>
+
+      <!-- Sort -->
+      <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-500 uppercase tracking-wide">Sort</label>
+        <div class="flex gap-1">
+          <select name="sort" class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            <option value="date"     {% if filters.sort == 'date' %}selected{% endif %}>Date</option>
+            <option value="filename" {% if filters.sort == 'filename' %}selected{% endif %}>Name</option>
+            <option value="size"     {% if filters.sort == 'size' %}selected{% endif %}>Size</option>
+            <option value="drive"    {% if filters.sort == 'drive' %}selected{% endif %}>Drive</option>
+          </select>
+          <select name="order" class="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            <option value="desc" {% if filters.order == 'desc' %}selected{% endif %}>↓</option>
+            <option value="asc"  {% if filters.order == 'asc' %}selected{% endif %}>↑</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Show Trash -->
+      <div class="flex flex-col gap-1 justify-end">
+        <label class="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
+          <input type="checkbox" name="show_trash" value="true" {% if filters.show_trash == 'true' %}checked{% endif %} class="w-4 h-4 rounded bg-gray-800 border border-gray-700 cursor-pointer" />
+          <span class="uppercase tracking-wide">Trash</span>
+        </label>
+      </div>
+
+      <!-- hidden page reset on filter change -->
+      <input type="hidden" name="page" value="1" id="page-input" />
+    </form>
+
+    <!-- Bulk label (selection lives inside #files-region; filters keep current page) -->
+    <div
+      id="files-bulk-bar"
+      class="mb-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 rounded-xl border border-gray-800 bg-gray-900/80 px-4 py-3"
+    >
+      <span id="bulk-selected-count" class="text-sm text-gray-400">No files selected</span>
+      <div class="flex flex-wrap gap-2">
+        <button
+          type="button"
+          data-bulk-action
+          disabled
+          class="px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-40 disabled:pointer-events-none bg-blue-900/40 border-blue-800 text-blue-200 hover:bg-blue-900/60"
+          hx-post="/files/bulk-label"
+          hx-target="#files-region"
+          hx-swap="innerHTML"
+          hx-include="#filter-form, #files-region input[name='file_ids']:checked"
+          hx-vals='{"action": "keep_hot"}'
+        >Label Hot</button>
+        <button
+          type="button"
+          data-bulk-action
+          disabled
+          class="px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-40 disabled:pointer-events-none bg-indigo-900/40 border-indigo-800 text-indigo-200 hover:bg-indigo-900/60"
+          hx-post="/files/bulk-label"
+          hx-target="#files-region"
+          hx-swap="innerHTML"
+          hx-include="#filter-form, #files-region input[name='file_ids']:checked"
+          hx-vals='{"action": "keep_cold"}'
+        >Label Cold</button>
+        <button
+          type="button"
+          data-bulk-action
+          disabled
+          class="px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-40 disabled:pointer-events-none bg-red-900/40 border-red-900 text-red-200 hover:bg-red-900/50"
+          hx-post="/files/bulk-label"
+          hx-target="#files-region"
+          hx-swap="innerHTML"
+          hx-include="#filter-form, #files-region input[name='file_ids']:checked"
+          hx-vals='{"action": "trash"}'
+        >Label Trash</button>
+        <button
+          type="button"
+          data-bulk-action
+          disabled
+          class="px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-40 disabled:pointer-events-none bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
+          hx-post="/files/bulk-label"
+          hx-target="#files-region"
+          hx-swap="innerHTML"
+          hx-include="#filter-form, #files-region input[name='file_ids']:checked"
+          hx-vals='{"action": "remove"}'
+        >Remove Labels</button>
+      </div>
+    </div>
+
+    <!-- Table + pagination region (swapped by HTMX) -->
+    <div id="files-region">
+      {% include "_files_rows.html" %}
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<script>
+(function () {
+  // Preserve active filters when clicking sidebar folder links or breadcrumbs
+  function filterParamsFromForm() {
+    var form = document.getElementById("filter-form");
+    if (!form) return new URLSearchParams();
+    var params = new URLSearchParams(new FormData(form));
+    params.delete("path");
+    params.delete("recursive");
+    params.delete("page");
+    return params;
+  }
+
+  function mergeFiltersIntoLink(link) {
+    var base = link.getAttribute("href");
+    var existing = new URLSearchParams(base.split("?")[1] || "");
+    filterParamsFromForm().forEach(function (val, key) {
+      if (!existing.has(key)) existing.set(key, val);
+    });
+    return base.split("?")[0] + "?" + existing.toString();
+  }
+
+  document.body.addEventListener("click", function (e) {
+    var link = e.target.closest(
+      "#sidebar-tree a[href^='/files?path='], nav a[href*='/files']"
+    );
+    if (!link) return;
+    e.preventDefault();
+    window.location.href = mergeFiltersIntoLink(link);
+  });
+
+  function syncFileBulkBar() {
+    var region = document.getElementById("files-region");
+    if (!region) return;
+    var boxes = region.querySelectorAll("input[name=\"file_ids\"]");
+    var checked = region.querySelectorAll("input[name=\"file_ids\"]:checked");
+    var n = checked.length;
+    var countEl = document.getElementById("bulk-selected-count");
+    if (countEl) {
+      countEl.textContent = n ? (n + " selected") : "No files selected";
+    }
+    document.querySelectorAll("#files-bulk-bar button[data-bulk-action]").forEach(function (btn) {
+      btn.disabled = n === 0;
+    });
+    var selAll = document.getElementById("select-all-files");
+    if (selAll && boxes.length) {
+      selAll.checked = n === boxes.length;
+      selAll.indeterminate = n > 0 && n < boxes.length;
+    }
+  }
+
+  document.body.addEventListener("htmx:afterSwap", function (e) {
+    if (e.detail && e.detail.target && e.detail.target.id === "files-region") {
+      syncFileBulkBar();
+    }
+  });
+  document.body.addEventListener("change", function (e) {
+    var t = e.target;
+    if (!t) return;
+    if (t.id === "select-all-files") {
+      var region = document.getElementById("files-region");
+      if (!region) return;
+      var on = t.checked;
+      region.querySelectorAll("input[name=\"file_ids\"]").forEach(function (cb) {
+        cb.checked = on;
+      });
+      syncFileBulkBar();
+      return;
+    }
+    if (t.matches && t.matches("input[name=\"file_ids\"]")) {
+      syncFileBulkBar();
+    }
+  });
+  document.addEventListener("DOMContentLoaded", syncFileBulkBar);
+})();
+</script>
+
+{% endblock %}

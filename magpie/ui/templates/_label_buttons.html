@@ -1,0 +1,58 @@
+{% set current_action = label.action if label else '' %}
+
+<div id="label-buttons" class="flex gap-3">
+  <button
+    hx-post="/files/{{ file_id }}/label"
+    hx-vals='{"action": "keep_hot"}'
+    hx-target="#label-buttons"
+    hx-swap="outerHTML"
+    class="flex-1 py-2.5 rounded-lg font-semibold text-sm transition-colors border
+           {% if current_action == 'keep_hot' %}
+             bg-blue-600 border-blue-500 text-white
+           {% else %}
+             bg-gray-800 border-gray-700 text-gray-300 hover:bg-blue-900/50 hover:border-blue-700
+           {% endif %}"
+  >
+    ☀️ Hot
+  </button>
+  <button
+    hx-post="/files/{{ file_id }}/label"
+    hx-vals='{"action": "keep_cold"}'
+    hx-target="#label-buttons"
+    hx-swap="outerHTML"
+    class="flex-1 py-2.5 rounded-lg font-semibold text-sm transition-colors border
+           {% if current_action == 'keep_cold' %}
+             bg-indigo-600 border-indigo-500 text-white
+           {% else %}
+             bg-gray-800 border-gray-700 text-gray-300 hover:bg-indigo-900/50 hover:border-indigo-700
+           {% endif %}"
+  >
+    ❄️ Cold
+  </button>
+  <button
+    hx-post="/files/{{ file_id }}/label"
+    hx-vals='{"action": "trash"}'
+    hx-target="#label-buttons"
+    hx-swap="outerHTML"
+    class="flex-1 py-2.5 rounded-lg font-semibold text-sm transition-colors border
+           {% if current_action == 'trash' %}
+             bg-red-700 border-red-600 text-white
+           {% else %}
+             bg-gray-800 border-gray-700 text-gray-300 hover:bg-red-900/50 hover:border-red-700
+           {% endif %}"
+  >
+    🗑️ Trash
+  </button>
+  {% if label %}
+  <button
+    hx-post="/files/{{ file_id }}/label"
+    hx-vals='{"action": "remove"}'
+    hx-target="#label-buttons"
+    hx-swap="outerHTML"
+    class="flex-1 py-2.5 rounded-lg font-semibold text-sm transition-colors border
+           bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:border-gray-600"
+  >
+    ✕ Remove
+  </button>
+  {% endif %}
+</div>
