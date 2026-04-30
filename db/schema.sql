@@ -1,4 +1,4 @@
--- Digital Magpie — SQLite Schema
+-- Magpie — SQLite Schema
 -- Apply via db/migrate.py. All migrations are idempotent.
 
 CREATE TABLE IF NOT EXISTS drives (

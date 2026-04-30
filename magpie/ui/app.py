@@ -35,7 +35,7 @@ PLACEHOLDER_THUMB = Path(__file__).parent / "static" / "thumb_placeholder.svg"
 DB_PATH = Path.home() / ".magpie" / "magpie.db"
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
-app = FastAPI(title="Digital Magpie")
+app = FastAPI(title="Magpie")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 # Cache for MIME types (rarely changes, expensive to query)

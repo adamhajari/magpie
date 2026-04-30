@@ -1,8 +1,8 @@
-# Digital Magpie — Product Requirements Document
+# Magpie — Product Requirements Document
 
 ## Overview
 
-Digital Magpie is a local-first tool for indexing, analyzing, and pruning several terabytes of files spread across 4–6 external drives. Its core value is a **Persistent Metadata Shadow**: a lightweight database that stays searchable even after source files are deleted, archived to cold storage, or moved. The system surfaces enough context (thumbnails, summaries, tags, duplicate status, classifier scores) for the user to make fast, confident decisions in bulk about where each file belongs: hot cloud, cold cloud, or trash.
+Magpie is a local-first tool for indexing, analyzing, and pruning several terabytes of files spread across 4–6 external drives. Its core value is a **Persistent Metadata Shadow**: a lightweight database that stays searchable even after source files are deleted, archived to cold storage, or moved. The system surfaces enough context (thumbnails, summaries, tags, duplicate status, classifier scores) for the user to make fast, confident decisions in bulk about where each file belongs: hot cloud, cold cloud, or trash.
 
 ---
 
@@ -58,7 +58,7 @@ The user currently uses Google Cloud. Options compared:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                     Digital Magpie                   │
+│                     Magpie                   │
 │                                                         │
 │  ┌──────────┐  ┌──────────────┐  ┌───────────────────┐ │
 │  │ Indexer  │  │   Analyzer   │  │    Classifier     │ │

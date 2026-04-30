@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ file.path | basename }} — Digital Librarian{% endblock %}
+{% block title %}{{ file.path | basename }} — Magpie{% endblock %}
 
 {% block content %}
 
@@ -61,7 +61,7 @@
     </div>
     {% endif %}
 
-    {# Detected faces — thumbnails from ~/.librarian/faces/ #}
+    {# Detected faces — thumbnails from ~/.magpie/faces/ #}
     {% if faces %}
     <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
       <h2 class="text-sm font-semibold text-gray-300 uppercase tracking-wide mb-1">Faces</h2>

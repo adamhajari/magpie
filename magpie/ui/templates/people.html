@@ -1,17 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Faces — Digital Librarian{% endblock %}
+{% block title %}Faces — Magpie{% endblock %}
 
 {% block content %}
 <div class="mb-8">
   <h1 class="text-2xl font-bold text-white mb-2">Faces</h1>
   <p class="text-gray-400 text-sm">
-    Named people and unlabeled face clusters. Run <code class="text-gray-300">librarian analyze faces &lt;path&gt;</code> to detect faces, then <code class="text-gray-300">librarian faces cluster</code> to group them.
+    Named people and unlabeled face clusters. Run <code class="text-gray-300">magpie analyze faces &lt;path&gt;</code> to detect faces, then <code class="text-gray-300">magpie faces cluster</code> to group them.
   </p>
 </div>
 
 {% if not named_people and not clusters and unclustered_count == 0 %}
 <div class="rounded-lg border border-gray-700 bg-gray-900/60 p-6 text-center">
-  <p class="text-gray-400 text-sm">No faces found. Run <code class="text-gray-300">librarian analyze faces</code> first.</p>
+  <p class="text-gray-400 text-sm">No faces found. Run <code class="text-gray-300">magpie analyze faces</code> first.</p>
 </div>
 {% else %}
 
@@ -101,7 +101,7 @@
     <span class="text-xs bg-gray-700 text-gray-400 border border-gray-600 rounded px-2 py-0.5">{{ unclustered_count }}</span>
   </div>
 
-  <p class="text-gray-400 text-sm">Run <code class="text-gray-300">librarian faces cluster</code> to group these faces by similarity.</p>
+  <p class="text-gray-400 text-sm">Run <code class="text-gray-300">magpie faces cluster</code> to group these faces by similarity.</p>
 </section>
 {% endif %}
 

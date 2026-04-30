@@ -1,4 +1,4 @@
-# Digital Magpie — RC Presentation Outline
+# Magpie — RC Presentation Outline
 
 ### 1. The Problem (1 slide)
 - dozens of hard drives, thumbdrives, and SD cards -- multi-TB, accumulated over years

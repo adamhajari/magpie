@@ -1,7 +1,7 @@
 [project]
 name = "magpie"
 version = "0.1.0"
-description = "Digital Magpie — local-first file indexing and pruning tool"
+description = "Magpie — local-first file indexing and pruning tool"
 requires-python = ">=3.12"
 dependencies = [
     "blake3>=1.0.0",

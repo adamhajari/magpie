@@ -6,7 +6,7 @@ To index files from Google Drive, you need to set up OAuth 2.0 credentials with 
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project (click "Select a Project" → "New Project")
-3. Name it something like "Digital Magpie"
+3. Name it something like "Magpie"
 4. Click "Create"
 
 ## Step 2: Enable the Google Drive API
@@ -23,7 +23,7 @@ To index files from Google Drive, you need to set up OAuth 2.0 credentials with 
    - User Type: Select **External**
    - Click **Create**
 4. Fill in the consent screen:
-   - App name: "Digital Magpie"
+   - App name: "Magpie"
    - User support email: your email
    - Developer contact: your email
    - Click **Save and Continue**
@@ -80,7 +80,7 @@ uv run magpie gdrive add --label "My Drive"
 
 This will:
 - Open a browser to Google's OAuth consent screen
-- Ask you to authorize "Digital Magpie" to access your Drive
+- Ask you to authorize "Magpie" to access your Drive
 - Save the access token at `~/.magpie/gdrive_token.json`
 
 Finally, index your files:

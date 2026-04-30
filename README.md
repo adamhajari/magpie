@@ -1,4 +1,4 @@
-# Digital Magpie
+# Magpie
 
 Local-first tool for indexing, analyzing, and pruning multi-TB file collections across external drives. Builds a persistent metadata shadow that stays searchable even after files are deleted or moved to cold storage.
 

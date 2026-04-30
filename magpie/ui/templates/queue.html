@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Action Queue — Digital Librarian{% endblock %}
+{% block title %}Action Queue — Magpie{% endblock %}
 
 {% block content %}
 <div class="mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
@@ -207,7 +207,7 @@
         data-exec-target="exec-log-{{ g.executor_arg }}"
         {% if g.count == 0 %}disabled{% endif %}
       >Run executor</button>
-      <p class="text-[11px] text-gray-500">Streams <code class="text-gray-400">librarian execute</code> output below.</p>
+      <p class="text-[11px] text-gray-500">Streams <code class="text-gray-400">magpie execute</code> output below.</p>
     </div>
   </div>
 

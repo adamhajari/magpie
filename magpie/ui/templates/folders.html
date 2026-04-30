@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Folders — Digital Librarian{% endblock %}
+{% block title %}Folders — Magpie{% endblock %}
 
 {% block content %}
 <div class="mb-6 flex items-center justify-between">
@@ -108,7 +108,7 @@
   <div class="text-center py-12">
     <div class="text-4xl mb-3">📂</div>
     <p class="text-gray-400">No folders found. Index some drives first.</p>
-    <p class="text-gray-600 text-sm mt-1">Run <code class="text-indigo-400">librarian index /path/to/drive</code></p>
+    <p class="text-gray-600 text-sm mt-1">Run <code class="text-indigo-400">magpie index /path/to/drive</code></p>
   </div>
   {% endif %}
 </div>
@@ -143,7 +143,7 @@
     </div>
     {% endfor %}
   </div>
-  <p class="text-gray-500 text-xs mt-4"><strong class="text-gray-400">Higher rank = higher priority.</strong> When a duplicate group has copies across preferred folders, the copy in the highest-ranked folder wins. Then use <strong class="text-gray-400">Apply preferred folders</strong> on the Duplicates page (or <code class="text-indigo-400">librarian dupes apply-preferred</code>). Outside copies get pending trash.</p>
+  <p class="text-gray-500 text-xs mt-4"><strong class="text-gray-400">Higher rank = higher priority.</strong> When a duplicate group has copies across preferred folders, the copy in the highest-ranked folder wins. Then use <strong class="text-gray-400">Apply preferred folders</strong> on the Duplicates page (or <code class="text-indigo-400">magpie dupes apply-preferred</code>). Outside copies get pending trash.</p>
 </div>
 {% endif %}
 

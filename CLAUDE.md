@@ -1,4 +1,4 @@
-# Digital Magpie — Developer Guide
+# Magpie — Developer Guide
 
 ## Project Overview
 

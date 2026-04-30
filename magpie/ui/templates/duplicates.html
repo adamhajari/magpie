@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Duplicates — Digital Librarian{% endblock %}
+{% block title %}Duplicates — Magpie{% endblock %}
 
 {% block content %}
 {% if preferred_applied and preferred_applied > 0 %}
@@ -148,7 +148,7 @@
 </script>
 
 {% if not groups %}
-<p class="text-gray-500 text-sm">No duplicate groups in the database. Run <code class="text-gray-400">librarian dupes find --exact</code> (and optionally <code class="text-gray-400">--near</code>).</p>
+<p class="text-gray-500 text-sm">No duplicate groups in the database. Run <code class="text-gray-400">magpie dupes find --exact</code> (and optionally <code class="text-gray-400">--near</code>).</p>
 {% else %}
 
 <!-- Bulk action bar -->

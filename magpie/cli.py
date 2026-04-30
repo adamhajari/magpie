@@ -18,7 +18,7 @@ faces_app = typer.Typer(
 
 app = typer.Typer(
     name="magpie",
-    help="Digital Magpie — index, analyze, and prune files across drives.",
+    help="Magpie — index, analyze, and prune files across drives.",
     no_args_is_help=True,
 )
 
@@ -155,7 +155,7 @@ def serve(
     """Start the web UI at http://localhost:8000/."""
     import uvicorn
 
-    typer.echo(f"Starting Digital Magpie UI at http://{host}:{port}/")
+    typer.echo(f"Starting Magpie UI at http://{host}:{port}/")
     uvicorn.run(
         "magpie.ui.app:app",
         host=host,
