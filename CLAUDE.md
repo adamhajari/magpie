@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Local-first tool for indexing, analyzing, and pruning multi-TB file collections across external drives. See [docs/PRD.md](docs/PRD.md) for full requirements.
+Local-first tool for indexing, analyzing, and pruning multi-TB file collections across multiple external drives and cloud storage providers. See [docs/PRD.md](docs/PRD.md) for full requirements.
 
 ## Layout
 
