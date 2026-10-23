@@ -42,7 +42,7 @@ uv run magpie drives list
 
 ---
 
-## Indexing
+## Indexing 
 
 Walk a directory and record file metadata, BLAKE3 content hashes, EXIF data, and perceptual hashes. Safe to re-run — unchanged files are skipped.
 
